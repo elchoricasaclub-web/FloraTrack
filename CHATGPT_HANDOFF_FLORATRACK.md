@@ -180,3 +180,13 @@ En esta fase se conectó `/riesgos` con `/workflows` mediante borrador local:
 - Clave localStorage: `floratrack_bridge_riesgos_to_workflows_v1`.
 - Botón agregado en `/riesgos`: `Enviar a Workflow QA`.
 - `/workflows` importa el borrador y solicita revisión QA antes de guardar.
+
+
+## Puente Workflows -> Audit Trail
+
+En esta fase se conecto `/workflows` con `/audit-trail` mediante borrador local:
+- Emisor: `src/app/workflows/page.tsx`.
+- Receptor: `src/app/audit-trail/page.tsx`.
+- Clave localStorage: `floratrack_bridge_workflows_to_audit_trail_v1`.
+- Botones agregados en `/workflows`: `Enviar a Audit Trail` y `Audit Trail`.
+- `/audit-trail` ahora es un modulo CRUD local completo con validacion GxP y exportacion JSON.

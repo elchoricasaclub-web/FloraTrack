@@ -1,4 +1,196 @@
-"use client";
+from pathlib import Path
+from datetime import datetime
+import shutil
+
+ROOT = Path.cwd()
+STAMP = datetime.now().strftime("%Y%m%d-%H%M%S")
+BACKUP_DIR = Path("/home/usergrowlifecol/floratrack_backups") / f"patch-workflows-audit-trail-{STAMP}"
+
+WORKFLOWS = ROOT / "src/app/workflows/page.tsx"
+AUDIT = ROOT / "src/app/audit-trail/page.tsx"
+AVANCE = ROOT / "AVANCE_FLORATRACK.md"
+HANDOFF = ROOT / "CHATGPT_HANDOFF_FLORATRACK.md"
+
+def backup(path: Path) -> None:
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        shutil.copy2(path, BACKUP_DIR / path.name)
+
+def insert_after_button_label(source: str, label: str, insertion: str) -> str:
+    index = source.find(label)
+    if index == -1:
+        raise SystemExit(f"ERROR: no encontre boton con texto: {label}")
+
+    end = source.find("</button>", index)
+    if end == -1:
+        raise SystemExit(f"ERROR: no encontre cierre de boton para: {label}")
+
+    end += len("</button>")
+    return source[:end] + "\n" + insertion + source[end:]
+
+for path in [WORKFLOWS, AUDIT, AVANCE, HANDOFF]:
+    backup(path)
+
+workflows = WORKFLOWS.read_text()
+
+# ---------------------------------------------------------------------
+# 1) /workflows: constante puente hacia audit trail
+# ---------------------------------------------------------------------
+
+if "floratrack_bridge_workflows_to_audit_trail_v1" not in workflows:
+    if 'const WORKFLOW_DRAFT_KEY = "floratrack_bridge_riesgos_to_workflows_v1";' in workflows:
+        workflows = workflows.replace(
+            'const WORKFLOW_DRAFT_KEY = "floratrack_bridge_riesgos_to_workflows_v1";\n',
+            'const WORKFLOW_DRAFT_KEY = "floratrack_bridge_riesgos_to_workflows_v1";\nconst AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";\n',
+            1,
+        )
+    else:
+        workflows = workflows.replace(
+            'const STORAGE_KEY = "floratrack_workflows_qa_v1";\n',
+            'const STORAGE_KEY = "floratrack_workflows_qa_v1";\nconst AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";\n',
+            1,
+        )
+
+# ---------------------------------------------------------------------
+# 2) /workflows: helpers para construir evento audit trail
+# ---------------------------------------------------------------------
+
+workflow_helpers = r'''
+function bridgeWorkflowClean(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function auditEventTypeFromWorkflow(record: WorkflowRecord): string {
+  const text = [
+    record.tipoWorkflow,
+    record.etapaActual,
+    record.estadoWorkflow,
+    record.decisionQA,
+    record.requiereFirmaElectronica,
+    record.requiereEscalamiento,
+  ].join(" ").toLowerCase();
+
+  if (text.includes("firma")) return "Firma electronica";
+  if (text.includes("aprob")) return "Aprobacion QA";
+  if (text.includes("rechaz")) return "Rechazo QA";
+  if (text.includes("cierre") || text.includes("cerrado")) return "Cierre controlado";
+  if (text.includes("escal")) return "Escalamiento";
+  if (text.includes("capa")) return "CAPA / desviacion";
+  if (text.includes("document")) return "Revision documental";
+
+  return "Workflow QA";
+}
+
+function auditCriticalityFromWorkflow(record: WorkflowRecord): string {
+  const text = [record.prioridad, record.requiereEscalamiento, record.requiereFirmaElectronica, record.decisionQA].join(" ").toLowerCase();
+
+  if (text.includes("crit") || text.includes("alta") || text.includes("escal")) return "Alta";
+  if (text.includes("media") || text.includes("firma")) return "Media";
+  return "Baja";
+}
+
+function buildAuditDraftFromWorkflow(record: WorkflowRecord): Record<string, string> {
+  const now = new Date();
+  const sourceCode = bridgeWorkflowClean(record.codigoWorkflow) || `WF-${now.toISOString().slice(0, 10)}`;
+  const associated = bridgeWorkflowClean(record.registroAsociado);
+
+  return {
+    codigoEvento: `AUD-${sourceCode}`,
+    fechaEvento: now.toISOString().slice(0, 10),
+    horaEvento: now.toISOString().slice(11, 16),
+    empresa: bridgeWorkflowClean(record.empresa),
+    usuario: bridgeWorkflowClean(record.responsableAsignado) || bridgeWorkflowClean(record.aprobadorQA) || "Usuario QA pendiente",
+    moduloOrigen: bridgeWorkflowClean(record.moduloOrigen) || "Workflows QA",
+    registroAsociado: sourceCode,
+    tipoEvento: auditEventTypeFromWorkflow(record),
+    accionEjecutada: `Registro audit trail generado desde workflow ${sourceCode}`,
+    estadoAnterior: "Workflow en gestion",
+    estadoNuevo: bridgeWorkflowClean(record.estadoWorkflow) || bridgeWorkflowClean(record.etapaActual) || "Pendiente QA",
+    criticidadGxp: auditCriticalityFromWorkflow(record),
+    motivo: bridgeWorkflowClean(record.motivoWorkflow) || "Trazabilidad generada desde workflow QA.",
+    decisionQA: bridgeWorkflowClean(record.decisionQA) || "Pendiente QA",
+    referenciaWorkflow: sourceCode,
+    referenciaRiesgo: associated.startsWith("RISK") ? associated : "",
+    referenciaCambio: associated.startsWith("CC") ? associated : "",
+    evidencia: bridgeWorkflowClean(record.evidencia),
+    hashReferencia: bridgeWorkflowClean(record.auditTrailReferencia) || `HASH-${sourceCode}`,
+    ipEquipo: "localhost / navegador",
+    resultado: bridgeWorkflowClean(record.estadoWorkflow) || "Evento registrado",
+    observaciones: `Evento importado desde Workflows QA. SLA ${bridgeWorkflowClean(record.slaHoras) || "pendiente"} horas. Firma: ${bridgeWorkflowClean(record.requiereFirmaElectronica) || "No definido"}. Escalamiento: ${bridgeWorkflowClean(record.requiereEscalamiento) || "No definido"}.`,
+  };
+}
+'''
+
+if "function buildAuditDraftFromWorkflow" not in workflows:
+    if "function loadWorkflowDraftFromRisk" in workflows:
+        workflows = workflows.replace("function loadWorkflowDraftFromRisk", workflow_helpers + "\nfunction loadWorkflowDraftFromRisk", 1)
+    else:
+        workflows = workflows.replace("export default function WorkflowsPage()", workflow_helpers + "\nexport default function WorkflowsPage()", 1)
+
+# ---------------------------------------------------------------------
+# 3) /workflows: handler para mandar borrador a /audit-trail
+# ---------------------------------------------------------------------
+
+workflow_handler = r'''
+  function handleCreateAuditDraft(record: WorkflowRecord, redirect = false) {
+    if (typeof window === "undefined") return;
+
+    if (!bridgeWorkflowClean(record.codigoWorkflow) && !bridgeWorkflowClean(record.motivoWorkflow)) {
+      showCloud("No se creo evento audit trail. Registra al menos codigo o motivo del workflow.", [], "warning");
+      return;
+    }
+
+    const draft = buildAuditDraftFromWorkflow(record);
+    window.localStorage.setItem(AUDIT_DRAFT_KEY, JSON.stringify(draft));
+
+    if (redirect) {
+      window.location.href = "/audit-trail";
+      return;
+    }
+
+    showCloud(
+      "Borrador audit trail creado para /audit-trail.",
+      [`Evento sugerido: ${draft.codigoEvento}`, `Tipo: ${draft.tipoEvento}`, "Abre /audit-trail para revisar y guardar."],
+      "success"
+    );
+  }
+'''
+
+if "function handleCreateAuditDraft" not in workflows:
+    if "  function exportJson()" in workflows:
+        workflows = workflows.replace("  function exportJson()", workflow_handler + "\n  function exportJson()", 1)
+    else:
+        raise SystemExit("ERROR: no encontre punto para insertar handleCreateAuditDraft en workflows")
+
+# ---------------------------------------------------------------------
+# 4) /workflows: boton en formulario
+# ---------------------------------------------------------------------
+
+form_button = '''              <button type="button" onClick={() => handleCreateAuditDraft(form, true)} className="rounded-2xl border border-emerald-300/50 px-6 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-950/60">
+                Enviar a Audit Trail
+              </button>'''
+
+if "Enviar a Audit Trail" not in workflows:
+    workflows = insert_after_button_label(workflows, "Limpiar formulario", form_button)
+
+# ---------------------------------------------------------------------
+# 5) /workflows: boton en tarjetas guardadas
+# ---------------------------------------------------------------------
+
+card_button = '''\n                        <button type="button" onClick={() => handleCreateAuditDraft(record, true)} className="rounded-xl border border-emerald-300/50 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-500/10">
+                          Audit Trail
+                        </button>'''
+
+if "handleCreateAuditDraft(record, true)" not in workflows:
+    workflows = insert_after_button_label(workflows, "Editar", card_button)
+
+WORKFLOWS.write_text(workflows)
+
+# ---------------------------------------------------------------------
+# 6) /audit-trail: modulo completo
+# ---------------------------------------------------------------------
+
+audit_page = r'''"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -763,3 +955,51 @@ function StatusPill({ value }: { value: string }) {
     </span>
   );
 }
+'''
+
+AUDIT.write_text(audit_page)
+
+# ---------------------------------------------------------------------
+# 7) documentacion
+# ---------------------------------------------------------------------
+
+avance_append = '''
+
+## Puente Workflows -> Audit Trail
+
+Se agrego conexion local entre `/workflows` y `/audit-trail`:
+- `/workflows` genera un borrador de evento audit trail desde el formulario o desde una tarjeta guardada.
+- El borrador se guarda en `localStorage` con clave `floratrack_bridge_workflows_to_audit_trail_v1`.
+- `/audit-trail` fue ampliado a modulo CRUD local con metricas, filtros, validaciones GxP, exportacion JSON e importacion automatica del borrador.
+- El evento audit trail captura workflow, usuario, modulo, accion, estados, decision QA, evidencia, hash, criticidad y resultado.
+'''
+
+handoff_append = '''
+
+## Puente Workflows -> Audit Trail
+
+En esta fase se conecto `/workflows` con `/audit-trail` mediante borrador local:
+- Emisor: `src/app/workflows/page.tsx`.
+- Receptor: `src/app/audit-trail/page.tsx`.
+- Clave localStorage: `floratrack_bridge_workflows_to_audit_trail_v1`.
+- Botones agregados en `/workflows`: `Enviar a Audit Trail` y `Audit Trail`.
+- `/audit-trail` ahora es un modulo CRUD local completo con validacion GxP y exportacion JSON.
+'''
+
+if AVANCE.exists():
+    avance = AVANCE.read_text()
+    if "Puente Workflows -> Audit Trail" not in avance:
+        AVANCE.write_text(avance + avance_append)
+
+if HANDOFF.exists():
+    handoff = HANDOFF.read_text()
+    if "Puente Workflows -> Audit Trail" not in handoff:
+        HANDOFF.write_text(handoff + handoff_append)
+
+print("PATCH COMPLETADO OK")
+print(f"Backup creado en: {BACKUP_DIR}")
+print("Archivos modificados:")
+print("- src/app/workflows/page.tsx")
+print("- src/app/audit-trail/page.tsx")
+print("- AVANCE_FLORATRACK.md")
+print("- CHATGPT_HANDOFF_FLORATRACK.md")

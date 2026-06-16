@@ -55,6 +55,7 @@ type CloudState = {
 
 const STORAGE_KEY = "floratrack_workflows_qa_v1";
 const WORKFLOW_DRAFT_KEY = "floratrack_bridge_riesgos_to_workflows_v1";
+const AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";
 
 const emptyForm: WorkflowRecord = {
   id: "",
@@ -398,6 +399,71 @@ function saveRecords(records: WorkflowRecord[]) {
 }
 
 
+
+function bridgeWorkflowClean(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function auditEventTypeFromWorkflow(record: WorkflowRecord): string {
+  const text = [
+    record.tipoWorkflow,
+    record.etapaActual,
+    record.estadoWorkflow,
+    record.decisionQA,
+    record.requiereFirmaElectronica,
+    record.requiereEscalamiento,
+  ].join(" ").toLowerCase();
+
+  if (text.includes("firma")) return "Firma electronica";
+  if (text.includes("aprob")) return "Aprobacion QA";
+  if (text.includes("rechaz")) return "Rechazo QA";
+  if (text.includes("cierre") || text.includes("cerrado")) return "Cierre controlado";
+  if (text.includes("escal")) return "Escalamiento";
+  if (text.includes("capa")) return "CAPA / desviacion";
+  if (text.includes("document")) return "Revision documental";
+
+  return "Workflow QA";
+}
+
+function auditCriticalityFromWorkflow(record: WorkflowRecord): string {
+  const text = [record.prioridad, record.requiereEscalamiento, record.requiereFirmaElectronica, record.decisionQA].join(" ").toLowerCase();
+
+  if (text.includes("crit") || text.includes("alta") || text.includes("escal")) return "Alta";
+  if (text.includes("media") || text.includes("firma")) return "Media";
+  return "Baja";
+}
+
+function buildAuditDraftFromWorkflow(record: WorkflowRecord): Record<string, string> {
+  const now = new Date();
+  const sourceCode = bridgeWorkflowClean(record.codigoWorkflow) || `WF-${now.toISOString().slice(0, 10)}`;
+  const associated = bridgeWorkflowClean(record.registroAsociado);
+
+  return {
+    codigoEvento: `AUD-${sourceCode}`,
+    fechaEvento: now.toISOString().slice(0, 10),
+    horaEvento: now.toISOString().slice(11, 16),
+    empresa: bridgeWorkflowClean(record.empresa),
+    usuario: bridgeWorkflowClean(record.responsableAsignado) || bridgeWorkflowClean(record.aprobadorQA) || "Usuario QA pendiente",
+    moduloOrigen: bridgeWorkflowClean(record.moduloOrigen) || "Workflows QA",
+    registroAsociado: sourceCode,
+    tipoEvento: auditEventTypeFromWorkflow(record),
+    accionEjecutada: `Registro audit trail generado desde workflow ${sourceCode}`,
+    estadoAnterior: "Workflow en gestion",
+    estadoNuevo: bridgeWorkflowClean(record.estadoWorkflow) || bridgeWorkflowClean(record.etapaActual) || "Pendiente QA",
+    criticidadGxp: auditCriticalityFromWorkflow(record),
+    motivo: bridgeWorkflowClean(record.motivoWorkflow) || "Trazabilidad generada desde workflow QA.",
+    decisionQA: bridgeWorkflowClean(record.decisionQA) || "Pendiente QA",
+    referenciaWorkflow: sourceCode,
+    referenciaRiesgo: associated.startsWith("RISK") ? associated : "",
+    referenciaCambio: associated.startsWith("CC") ? associated : "",
+    evidencia: bridgeWorkflowClean(record.evidencia),
+    hashReferencia: bridgeWorkflowClean(record.auditTrailReferencia) || `HASH-${sourceCode}`,
+    ipEquipo: "localhost / navegador",
+    resultado: bridgeWorkflowClean(record.estadoWorkflow) || "Evento registrado",
+    observaciones: `Evento importado desde Workflows QA. SLA ${bridgeWorkflowClean(record.slaHoras) || "pendiente"} horas. Firma: ${bridgeWorkflowClean(record.requiereFirmaElectronica) || "No definido"}. Escalamiento: ${bridgeWorkflowClean(record.requiereEscalamiento) || "No definido"}.`,
+  };
+}
+
 function loadWorkflowDraftFromRisk(): Partial<WorkflowRecord> | null {
   if (typeof window === "undefined") return null;
 
@@ -626,6 +692,30 @@ export default function WorkflowsPage() {
     showCloud("Workflow eliminado del almacenamiento local.", [], "success");
   }
 
+
+  function handleCreateAuditDraft(record: WorkflowRecord, redirect = false) {
+    if (typeof window === "undefined") return;
+
+    if (!bridgeWorkflowClean(record.codigoWorkflow) && !bridgeWorkflowClean(record.motivoWorkflow)) {
+      showCloud("No se creo evento audit trail. Registra al menos codigo o motivo del workflow.", [], "warning");
+      return;
+    }
+
+    const draft = buildAuditDraftFromWorkflow(record);
+    window.localStorage.setItem(AUDIT_DRAFT_KEY, JSON.stringify(draft));
+
+    if (redirect) {
+      window.location.href = "/audit-trail";
+      return;
+    }
+
+    showCloud(
+      "Borrador audit trail creado para /audit-trail.",
+      [`Evento sugerido: ${draft.codigoEvento}`, `Tipo: ${draft.tipoEvento}`, "Abre /audit-trail para revisar y guardar."],
+      "success"
+    );
+  }
+
   function exportJson() {
     if (records.length === 0) {
       showCloud("No hay workflows para exportar.", [], "warning");
@@ -763,6 +853,7 @@ export default function WorkflowsPage() {
                 <button type="button" onClick={resetForm} className="rounded-xl border border-slate-600 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800">
                   Cancelar edición
                 </button>
+
               )}
             </div>
 
@@ -838,6 +929,9 @@ export default function WorkflowsPage() {
               <button type="button" onClick={resetForm} className="rounded-2xl border border-slate-600 px-6 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">
                 Limpiar formulario
               </button>
+              <button type="button" onClick={() => handleCreateAuditDraft(form, true)} className="rounded-2xl border border-emerald-300/50 px-6 py-3 text-sm font-black text-emerald-100 transition hover:bg-emerald-950/60">
+                Enviar a Audit Trail
+              </button>
             </div>
           </form>
 
@@ -906,6 +1000,9 @@ export default function WorkflowsPage() {
                       <div className="flex gap-2">
                         <button type="button" onClick={() => handleEdit(record)} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">
                           Editar
+                        </button>
+                        <button type="button" onClick={() => handleCreateAuditDraft(record, true)} className="rounded-xl border border-emerald-300/50 px-3 py-2 text-xs font-black text-emerald-100 hover:bg-emerald-500/10">
+                          Audit Trail
                         </button>
 
                         <button type="button" onClick={() => handleDelete(record.id)} className="rounded-xl border border-red-400/40 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">

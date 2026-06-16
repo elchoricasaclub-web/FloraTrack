@@ -73,3 +73,12 @@ Se agregó conexión local entre `/riesgos` y `/workflows`:
 - `/workflows` importa automáticamente el borrador, precarga el formulario y elimina la clave puente.
 - El flujo sugiere prioridad, SLA, responsable, módulo origen, firma electrónica, escalamiento, CAPA y audit trail.
 - No reemplaza la decisión QA formal: acelera la trazabilidad desde QRM hacia ejecución operativa.
+
+
+## Puente Workflows -> Audit Trail
+
+Se agrego conexion local entre `/workflows` y `/audit-trail`:
+- `/workflows` genera un borrador de evento audit trail desde el formulario o desde una tarjeta guardada.
+- El borrador se guarda en `localStorage` con clave `floratrack_bridge_workflows_to_audit_trail_v1`.
+- `/audit-trail` fue ampliado a modulo CRUD local con metricas, filtros, validaciones GxP, exportacion JSON e importacion automatica del borrador.
+- El evento audit trail captura workflow, usuario, modulo, accion, estados, decision QA, evidencia, hash, criticidad y resultado.
