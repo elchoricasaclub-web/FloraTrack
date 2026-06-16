@@ -57,6 +57,7 @@ type CloudState = {
 };
 
 const STORAGE_KEY = "floratrack_gestion_riesgos_gxp_v1";
+const RISK_DRAFT_KEY = "floratrack_bridge_cambios_to_riesgos_v1";
 
 const emptyForm: RiskRecord = {
   id: "",
@@ -454,6 +455,31 @@ function saveRecords(records: RiskRecord[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
+
+function loadRiskDraftFromChange(): Partial<RiskRecord> | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(RISK_DRAFT_KEY);
+    if (!raw) return null;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+    const source = parsed as Record<string, unknown>;
+    const draft: Partial<RiskRecord> = {};
+
+    (Object.keys(emptyForm) as Array<keyof RiskRecord>).forEach((field) => {
+      const value = source[field];
+      if (typeof value === "string") draft[field] = value;
+    });
+
+    return Object.keys(draft).length > 0 ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function RiesgosPage() {
   const [records, setRecords] = useState<RiskRecord[]>([]);
   const [form, setForm] = useState<RiskRecord>(emptyForm);
@@ -466,6 +492,26 @@ export default function RiesgosPage() {
 
   useEffect(() => {
     setRecords(loadRecords());
+
+    const draft = loadRiskDraftFromChange();
+    if (!draft) return;
+
+    setForm((current) => ({
+      ...current,
+      ...draft,
+      id: "",
+      creadoEn: "",
+      actualizadoEn: "",
+    }));
+    window.localStorage.removeItem(RISK_DRAFT_KEY);
+    setCloud({
+      message: "Borrador importado desde Control de Cambios.",
+      errors: ["Revisa RPN, controles, mitigacion, evidencia y decision QA antes de guardar."],
+      tone: "success",
+    });
+
+    const timer = window.setTimeout(() => setCloud(null), 9000);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function showCloud(message: string, errors: string[] = [], tone: CloudTone = "warning") {

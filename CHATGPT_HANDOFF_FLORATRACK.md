@@ -161,3 +161,12 @@ Compress-Archive -Path (Join-Path $BackupPath "*") -DestinationPath "$BackupPath
 4. Agregar exportaciones PDF/XLSX validadas para control de cambios.
 5. Revisar el warning NFT del endpoint `app-doctor`.
 6. Reducir los 19 warnings de lint legacy cuando se quiera dejar el repositorio sin advertencias.
+
+## Puente Cambios -> Riesgos QRM
+
+En esta fase se conecto `/cambios` con `/riesgos` mediante borrador local:
+- Archivo emisor: `src/app/cambios/page.tsx`.
+- Archivo receptor: `src/app/riesgos/page.tsx`.
+- Clave localStorage: `floratrack_bridge_cambios_to_riesgos_v1`.
+- Botones agregados: `Enviar a Riesgos QRM` en formulario y `Riesgo QRM` en tarjetas guardadas.
+- `/riesgos` importa el borrador y exige revision antes de guardar el riesgo.

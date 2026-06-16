@@ -61,6 +61,7 @@ type Notice = {
 };
 
 const STORAGE_KEY = "floratrack_control_cambios_gxp_v1";
+const RISK_DRAFT_KEY = "floratrack_bridge_cambios_to_riesgos_v1";
 
 const emptyForm: ChangeRecord = {
   id: "",
@@ -434,6 +435,102 @@ function buildDecisionPack(record: ChangeRecord): { title: string; value: string
   ];
 }
 
+
+function riskAreaFromChange(record: ChangeRecord): string {
+  const area = clean(record.areaSolicitante).toLowerCase();
+  const moduleName = clean(record.moduloAfectado).toLowerCase();
+  const text = `${area} ${moduleName}`;
+
+  if (text.includes("regulatorio") || text.includes("ica") || text.includes("invima") || text.includes("dian")) return "Regulatorio";
+  if (text.includes("qc")) return "QC";
+  if (text.includes("qa") || text.includes("calidad")) return "QA";
+  if (text.includes("validacion") || text.includes("validación") || text.includes("software") || text.includes("part 11") || text.includes("api")) return "TI / Validación";
+  if (text.includes("proveedor")) return "Proveedores";
+  if (text.includes("extraccion") || text.includes("extracción") || text.includes("bho") || text.includes("rosin") || text.includes("hash")) return "Extracción";
+  if (text.includes("cultivo")) return "Cultivo";
+  if (text.includes("propagacion") || text.includes("propagación")) return "Propagación";
+  if (text.includes("cosecha")) return "Cosecha";
+  if (text.includes("inventario")) return "Inventario";
+  if (text.includes("document")) return "Documentación";
+
+  return "QA";
+}
+
+function riskTypeFromChange(record: ChangeRecord): string {
+  const text = [
+    record.moduloAfectado,
+    record.tipoCambio,
+    record.impactoRegulatorio,
+    record.impactoValidacion,
+    record.impactoDatos,
+    record.impactoDocumental,
+  ].join(" ").toLowerCase();
+
+  if (text.includes("regulatorio") || text.includes("ica") || text.includes("invima") || text.includes("dian")) return "Regulatorio";
+  if (text.includes("audit") || text.includes("datos") || text.includes("data") || text.includes("backup")) return "Integridad de datos";
+  if (text.includes("software") || text.includes("part 11") || text.includes("validacion") || text.includes("validación") || text.includes("api")) return "Software / Part 11";
+  if (text.includes("proveedor")) return "Proveedor";
+  if (text.includes("document")) return "Documental";
+  if (text.includes("entrenamiento")) return "Entrenamiento";
+
+  return "GMP";
+}
+
+function riskScoreFromChange(record: ChangeRecord): { severidad: string; probabilidad: string; detectabilidad: string; nivelRiesgo: string } {
+  const text = [record.criticidadGxP, record.impactoGacpGmp, record.impactoRegulatorio, record.impactoValidacion, record.impactoDatos].join(" ").toLowerCase();
+  const critical = text.includes("critico") || text.includes("crítico");
+  const high = isHighImpact(record) || needsCapa(record);
+  const validationImpact = !isBlank(record.impactoValidacion) && clean(record.impactoValidacion) !== "No";
+  const dataImpact = !isBlank(record.impactoDatos) && clean(record.impactoDatos) !== "No";
+
+  if (critical) return { severidad: "5", probabilidad: "4", detectabilidad: "4", nivelRiesgo: "Crítico" };
+  if (high) return { severidad: "4", probabilidad: "4", detectabilidad: "3", nivelRiesgo: "Alto" };
+  if (validationImpact || dataImpact) return { severidad: "3", probabilidad: "3", detectabilidad: "3", nivelRiesgo: "Medio" };
+  return { severidad: "2", probabilidad: "2", detectabilidad: "3", nivelRiesgo: "Bajo" };
+}
+
+function buildRiskDraftFromChange(record: ChangeRecord): Record<string, string> {
+  const score = riskScoreFromChange(record);
+  const rpn = Number(score.severidad) * Number(score.probabilidad) * Number(score.detectabilidad);
+  const today = new Date().toISOString().slice(0, 10);
+  const nowTime = new Date().toISOString().slice(11, 16);
+  const sourceCode = clean(record.codigoCambio) || `CC-${today}`;
+
+  return {
+    codigoRiesgo: clean(record.riesgoAsociado) || `RISK-${sourceCode}`,
+    fechaIdentificacion: clean(record.fechaSolicitud) || today,
+    horaIdentificacion: clean(record.horaSolicitud) || nowTime,
+    empresa: clean(record.empresa),
+    sede: clean(record.sede),
+    areaProceso: riskAreaFromChange(record),
+    moduloRelacionado: "Control de Cambios",
+    procesoActividad: `Control de cambio ${sourceCode} / ${clean(record.moduloAfectado) || "Modulo pendiente"}`,
+    tipoRiesgo: riskTypeFromChange(record),
+    fuenteRiesgo: "Control de cambios",
+    descripcionRiesgo: `Riesgo derivado del cambio ${sourceCode}: ${clean(record.descripcionCambio) || "descripcion pendiente"}`,
+    causaPotencial: clean(record.justificacion) || "Cambio pendiente de justificacion completa o analisis de causa potencial.",
+    consecuenciaPotencial: [record.impactoGacpGmp, record.impactoRegulatorio, record.impactoValidacion, record.impactoDatos].map(clean).filter(Boolean).join(" / ") || "Impacto potencial en cumplimiento GxP, trazabilidad, datos o liberacion QA.",
+    severidad: score.severidad,
+    probabilidad: score.probabilidad,
+    detectabilidad: score.detectabilidad,
+    rpnCalculado: String(rpn),
+    nivelRiesgo: score.nivelRiesgo,
+    controlesExistentes: [`Decision QA: ${clean(record.decisionQA) || "Pendiente QA"}`, `Audit trail: ${clean(record.auditTrailReferencia) || "Pendiente"}`, `Evidencia: ${clean(record.evidencia) || "Pendiente"}`].join(" / "),
+    planMitigacion: clean(record.planImplementacion) || clean(record.planVerificacion) || "Definir plan de mitigacion, verificacion de eficacia y evidencia QA antes de aprobar el cambio.",
+    responsableMitigacion: clean(record.responsableImplementacion) || clean(record.aprobadorQA) || clean(record.solicitante),
+    fechaObjetivo: clean(record.fechaObjetivo),
+    requiereCAPA: needsCapa(record) ? "Sí" : "No",
+    desviacionAsociada: clean(record.desviacionAsociada),
+    capa: clean(record.capa),
+    estadoRiesgo: "Identificado",
+    verificacionEficacia: "Pendiente",
+    fechaCierre: "",
+    decisionQA: "Pendiente QA",
+    evidencia: clean(record.evidencia),
+    observaciones: `Borrador generado desde Control de Cambios ${sourceCode}. Revisar severidad, probabilidad, detectabilidad y evidencia antes de guardar.`,
+  };
+}
+
 function statusTone(value: string): "success" | "warning" | "danger" | "neutral" {
   const normalized = value.toLowerCase();
   if (normalized.includes("cerrado") || normalized.includes("aprobado") || normalized.includes("implementado")) return "success";
@@ -656,6 +753,30 @@ export default function CambiosPage() {
     showNotice("success", editingId ? "Cambio actualizado correctamente." : "Cambio registrado correctamente con control QA.");
   }
 
+
+  function handleCreateRiskDraft(record: ChangeRecord, redirect = false) {
+    if (typeof window === "undefined") return;
+
+    if (isBlank(record.codigoCambio) && isBlank(record.descripcionCambio)) {
+      showNotice("warning", "No se creo borrador de riesgo. Registra al menos codigo o descripcion del cambio.");
+      return;
+    }
+
+    const draft = buildRiskDraftFromChange(record);
+    window.localStorage.setItem(RISK_DRAFT_KEY, JSON.stringify(draft));
+
+    if (redirect) {
+      window.location.href = "/riesgos";
+      return;
+    }
+
+    showNotice("success", "Borrador de riesgo QRM creado para /riesgos.", [
+      `Codigo sugerido: ${draft.codigoRiesgo}`,
+      `Nivel sugerido: ${draft.nivelRiesgo} / RPN ${draft.rpnCalculado}`,
+      "Abre /riesgos para revisar y guardar el registro.",
+    ]);
+  }
+
   function handleEdit(record: ChangeRecord) {
     setForm(record);
     setEditingId(record.id);
@@ -784,6 +905,9 @@ export default function CambiosPage() {
               <button type="button" onClick={resetForm} className="rounded-2xl border border-slate-600 px-6 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">
                 Limpiar formulario
               </button>
+              <button type="button" onClick={() => handleCreateRiskDraft(form, true)} className="rounded-2xl border border-cyan-300/50 px-6 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-950/60">
+                Enviar a Riesgos QRM
+              </button>
               <button type="button" onClick={exportJson} className="rounded-2xl border border-slate-600 px-6 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">
                 Exportar JSON
               </button>
@@ -827,7 +951,7 @@ export default function CambiosPage() {
                 <EmptyState />
               ) : (
                 filteredRecords.map((record) => (
-                  <ChangeCard key={record.id} record={record} onEdit={handleEdit} onDelete={handleDelete} />
+                  <ChangeCard key={record.id} record={record} onEdit={handleEdit} onDelete={handleDelete} onRiskDraft={handleCreateRiskDraft} />
                 ))
               )}
             </div>
@@ -986,10 +1110,12 @@ function ChangeCard({
   record,
   onEdit,
   onDelete,
+  onRiskDraft,
 }: {
   record: ChangeRecord;
   onEdit: (record: ChangeRecord) => void;
   onDelete: (id: string) => void;
+  onRiskDraft: (record: ChangeRecord, redirect?: boolean) => void;
 }) {
   return (
     <article className="rounded-[2rem] border border-slate-700 bg-slate-900 p-5 shadow-xl">
@@ -1032,6 +1158,9 @@ function ChangeCard({
       <div className="mt-5 flex flex-wrap gap-2">
         <button type="button" onClick={() => onEdit(record)} className="rounded-2xl bg-cyan-400 px-4 py-2 text-xs font-black text-slate-950 transition hover:bg-cyan-300">
           Editar
+        </button>
+        <button type="button" onClick={() => onRiskDraft(record, true)} className="rounded-2xl border border-cyan-300/50 px-4 py-2 text-xs font-black text-cyan-100 transition hover:bg-cyan-950/60">
+          Riesgo QRM
         </button>
         <button type="button" onClick={() => onDelete(record.id)} className="rounded-2xl border border-slate-700 px-4 py-2 text-xs font-black text-slate-200 transition hover:bg-slate-800">
           Eliminar

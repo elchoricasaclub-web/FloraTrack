@@ -55,3 +55,11 @@ Proyecto: `gacp-growlifecol`
 - Se ajustó API de alertas enterprise para fechas/títulos opcionales.
 - Se agregó check funcional estático y scripts npm `typecheck`, `check:routes` y `functional-check:static`.
 - Se validó `npm run check:routes`, `npm run typecheck`, `npm run lint` y `NEXT_TELEMETRY_DISABLED=1 npm run build`.
+
+## Puente Cambios -> Riesgos QRM
+
+Se agrego conexion local entre `/cambios` y `/riesgos`:
+- `/cambios` genera un borrador de riesgo QRM desde el formulario o desde una tarjeta guardada.
+- El borrador se guarda en `localStorage` con clave `floratrack_bridge_cambios_to_riesgos_v1`.
+- `/riesgos` importa automaticamente el borrador, precarga el formulario, elimina la clave puente y solicita revision QA antes de guardar.
+- No reemplaza decision QA ni matriz QRM formal; acelera trazabilidad entre Control de Cambios y Gestion de Riesgos.
