@@ -381,6 +381,59 @@ function needsCapa(record: ChangeRecord): boolean {
   );
 }
 
+function buildDecisionPack(record: ChangeRecord): { title: string; value: string }[] {
+  const highImpact = isHighImpact(record);
+  const validationImpact = !isBlank(record.impactoValidacion) && record.impactoValidacion !== "No";
+  const regulatoryImpact = !isBlank(record.impactoRegulatorio) && record.impactoRegulatorio !== "No";
+  const dataIntegrityImpact = [record.impactoDatos, record.impactoValidacion].some((value) => {
+    const normalized = clean(value).toLowerCase();
+    return (
+      normalized.includes("audit") ||
+      normalized.includes("csv") ||
+      normalized.includes("part 11") ||
+      normalized.includes("datos") ||
+      normalized.includes("api") ||
+      normalized.includes("backup") ||
+      normalized.includes("migracion")
+    );
+  });
+
+  return [
+    {
+      title: "Riesgo QRM",
+      value:
+        highImpact || regulatoryImpact || dataIntegrityImpact
+          ? "Vincular matriz de riesgos antes de aprobar QA"
+          : "Evaluacion de riesgo simplificada permitida",
+    },
+    {
+      title: "CAPA / desviacion",
+      value: needsCapa(record)
+        ? "CAPA y desviacion obligatorias para continuar"
+        : "CAPA no obligatoria segun datos actuales",
+    },
+    {
+      title: "Validacion / CSV",
+      value:
+        validationImpact || dataIntegrityImpact
+          ? "Requiere plan de verificacion, evidencia y trazabilidad de pruebas"
+          : "Sin validacion adicional detectada",
+    },
+    {
+      title: "Audit trail",
+      value: isBlank(record.auditTrailReferencia)
+        ? "Pendiente referencia audit trail / ticket"
+        : record.auditTrailReferencia,
+    },
+    {
+      title: "Reporte regulatorio",
+      value: regulatoryImpact
+        ? "Evaluar reporte programado o radicacion regulatoria"
+        : "Sin reporte regulatorio automatico sugerido",
+    },
+  ];
+}
+
 function statusTone(value: string): "success" | "warning" | "danger" | "neutral" {
   const normalized = value.toLowerCase();
   if (normalized.includes("cerrado") || normalized.includes("aprobado") || normalized.includes("implementado")) return "success";
@@ -449,6 +502,8 @@ export default function CambiosPage() {
       closed,
     };
   }, [records]);
+
+  const decisionPack = useMemo(() => buildDecisionPack(form), [form]);
 
   function showNotice(tone: Notice["tone"], title: string, items: string[] = []) {
     setNotice({ tone, title, items });
@@ -708,7 +763,9 @@ export default function CambiosPage() {
               <StatusPill value={editingId ? "Editando" : "Borrador"} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <DecisionPackPanel items={decisionPack} />
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
               {fields.map((field) => (
                 <FieldRenderer
                   key={field.key}
@@ -785,6 +842,34 @@ export default function CambiosPage() {
         </section>
       </section>
     </main>
+  );
+}
+
+function DecisionPackPanel({ items }: { items: { title: string; value: string }[] }) {
+  return (
+    <div className="rounded-[1.75rem] border border-cyan-300/30 bg-cyan-950/20 p-5">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-cyan-200">Paquete de decision QA</p>
+          <h3 className="mt-1 text-xl font-black text-white">Obligaciones derivadas del cambio</h3>
+        </div>
+        <StatusPill value="Preview auditado" />
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
+        {items.map((item) => (
+          <div key={item.title} className="rounded-2xl border border-slate-700 bg-slate-950/80 p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-slate-500">{item.title}</p>
+            <p className="mt-2 text-sm font-bold leading-6 text-slate-200">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-xs font-semibold leading-5 text-cyan-100/80">
+        Esta vista no reemplaza la decision QA: ayuda a detectar enlaces necesarios con riesgos,
+        workflows, audit trail y reportes antes de guardar.
+      </p>
+    </div>
   );
 }
 
