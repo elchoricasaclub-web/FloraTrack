@@ -54,6 +54,7 @@ type CloudState = {
 };
 
 const STORAGE_KEY = "floratrack_workflows_qa_v1";
+const WORKFLOW_DRAFT_KEY = "floratrack_bridge_riesgos_to_workflows_v1";
 
 const emptyForm: WorkflowRecord = {
   id: "",
@@ -396,6 +397,31 @@ function saveRecords(records: WorkflowRecord[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
+
+function loadWorkflowDraftFromRisk(): Partial<WorkflowRecord> | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(WORKFLOW_DRAFT_KEY);
+    if (!raw) return null;
+
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+
+    const source = parsed as Record<string, unknown>;
+    const draft: Partial<WorkflowRecord> = {};
+
+    (Object.keys(emptyForm) as Array<keyof WorkflowRecord>).forEach((field) => {
+      const value = source[field];
+      if (typeof value === "string") draft[field] = value;
+    });
+
+    return Object.keys(draft).length > 0 ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function WorkflowsPage() {
   const [records, setRecords] = useState<WorkflowRecord[]>([]);
   const [form, setForm] = useState<WorkflowRecord>(emptyForm);
@@ -408,6 +434,24 @@ export default function WorkflowsPage() {
 
   useEffect(() => {
     setRecords(loadRecords());
+
+    const draft = loadWorkflowDraftFromRisk();
+    if (!draft) return;
+
+    setForm((current) => ({
+      ...current,
+      ...draft,
+      id: "",
+      creadoEn: "",
+      actualizadoEn: "",
+    }));
+
+    window.localStorage.removeItem(WORKFLOW_DRAFT_KEY);
+    showCloud(
+      "Borrador importado desde Gestión de Riesgos.",
+      ["Revisa responsables, SLA, firma, escalamiento, evidencia y decisión QA antes de guardar."],
+      "success"
+    );
   }, []);
 
   function showCloud(message: string, errors: string[] = [], tone: CloudTone = "warning") {

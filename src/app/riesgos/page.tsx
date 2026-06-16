@@ -58,6 +58,7 @@ type CloudState = {
 
 const STORAGE_KEY = "floratrack_gestion_riesgos_gxp_v1";
 const RISK_DRAFT_KEY = "floratrack_bridge_cambios_to_riesgos_v1";
+const WORKFLOW_DRAFT_KEY = "floratrack_bridge_riesgos_to_workflows_v1";
 
 const emptyForm: RiskRecord = {
   id: "",
@@ -456,6 +457,134 @@ function saveRecords(records: RiskRecord[]) {
 }
 
 
+
+function bridgeRiskClean(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function bridgeRiskNumber(value: unknown): number {
+  const parsed = Number(bridgeRiskClean(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function workflowPriorityFromRisk(record: RiskRecord): string {
+  const level = bridgeRiskClean(record.nivelRiesgo).toLowerCase();
+  const rpn = bridgeRiskNumber(record.rpnCalculado);
+
+  if (level.includes("crit") || rpn >= 75) return "Crítica";
+  if (level.includes("alto") || rpn >= 40) return "Alta";
+  if (level.includes("medio") || rpn >= 15) return "Media";
+  return "Baja";
+}
+
+function workflowTypeFromRisk(record: RiskRecord): string {
+  const level = bridgeRiskClean(record.nivelRiesgo).toLowerCase();
+  const decision = bridgeRiskClean(record.decisionQA).toLowerCase();
+  const capa = bridgeRiskClean(record.requiereCAPA).toLowerCase();
+
+  if (level.includes("crit") || decision.includes("escalamiento")) return "Escalamiento crítico";
+  if (capa === "sí" || capa === "si" || decision.includes("capa")) return "Cierre CAPA";
+  return "Revisión QA";
+}
+
+function workflowSlaFromRisk(record: RiskRecord): string {
+  const priority = workflowPriorityFromRisk(record);
+
+  if (priority === "Crítica") return "24";
+  if (priority === "Alta") return "48";
+  if (priority === "Media") return "120";
+  return "240";
+}
+
+function workflowDeadlineFromRisk(record: RiskRecord): string {
+  const explicitDate = bridgeRiskClean(record.fechaObjetivo);
+  if (explicitDate) return explicitDate;
+
+  const date = new Date();
+  const priority = workflowPriorityFromRisk(record);
+  date.setDate(date.getDate() + (priority === "Crítica" ? 1 : priority === "Alta" ? 2 : 7));
+
+  return date.toISOString().slice(0, 10);
+}
+
+function workflowModuleFromRisk(record: RiskRecord): string {
+  const text = `${bridgeRiskClean(record.tipoRiesgo)} ${bridgeRiskClean(record.moduloRelacionado)} ${bridgeRiskClean(record.areaProceso)}`.toLowerCase();
+
+  if (text.includes("regulatorio") || text.includes("ica") || text.includes("invima") || text.includes("dian")) return "Regulatorio";
+  if (text.includes("proveedor")) return "Proveedores";
+  if (text.includes("entrenamiento")) return "Entrenamiento";
+  if (text.includes("document")) return "Documentos";
+  if (text.includes("part 11")) return "Part 11";
+  if (text.includes("backup")) return "Backups";
+  if (text.includes("integracion") || text.includes("integración") || text.includes("api")) return "Integraciones";
+  if (text.includes("capa") || text.includes("desviacion") || text.includes("desviación")) return "Desviaciones / CAPA";
+
+  return "Calidad QA";
+}
+
+function workflowAreaFromRisk(record: RiskRecord): string {
+  const area = bridgeRiskClean(record.areaProceso);
+  const normalized = area.toLowerCase();
+
+  if (normalized.includes("regulatorio")) return "Regulatorio";
+  if (normalized.includes("qc")) return "QC";
+  if (normalized.includes("ti") || normalized.includes("valid")) return "TI / Validación";
+  if (normalized.includes("proveedor")) return "Proveedores";
+  if (normalized.includes("cultivo")) return "Cultivo";
+  if (normalized.includes("cosecha")) return "Cosecha";
+  if (normalized.includes("extraccion") || normalized.includes("extracción")) return "Extracción";
+  if (normalized.includes("document")) return "Documentación";
+
+  return "QA";
+}
+
+function buildWorkflowDraftFromRisk(record: RiskRecord): Record<string, string> {
+  const sourceCode = bridgeRiskClean(record.codigoRiesgo) || `RISK-${new Date().toISOString().slice(0, 10)}`;
+  const now = new Date();
+  const priority = workflowPriorityFromRisk(record);
+  const decision = bridgeRiskClean(record.decisionQA).toLowerCase();
+  const capa = bridgeRiskClean(record.requiereCAPA).toLowerCase();
+  const requiresEscalation = priority === "Crítica" || priority === "Alta" || decision.includes("escalamiento");
+  const requiresSignature =
+    priority === "Crítica" ||
+    priority === "Alta" ||
+    decision.includes("aprobado") ||
+    decision.includes("aceptado") ||
+    decision.includes("cierre");
+  const capaRequired = capa === "sí" || capa === "si" || decision.includes("capa");
+
+  return {
+    codigoWorkflow: `WF-${sourceCode}`,
+    fechaCreacion: now.toISOString().slice(0, 10),
+    horaCreacion: now.toISOString().slice(11, 16),
+    empresa: bridgeRiskClean(record.empresa),
+    sede: bridgeRiskClean(record.sede),
+    moduloOrigen: workflowModuleFromRisk(record),
+    registroAsociado: sourceCode,
+    tipoWorkflow: workflowTypeFromRisk(record),
+    etapaActual: "Creado",
+    prioridad: priority,
+    responsableAsignado: bridgeRiskClean(record.responsableMitigacion) || "Responsable pendiente",
+    areaResponsable: workflowAreaFromRisk(record),
+    aprobadorQA: "QA pendiente",
+    responsableTecnico: bridgeRiskClean(record.responsableMitigacion) || bridgeRiskClean(record.areaProceso) || "Responsable técnico pendiente",
+    fechaLimite: workflowDeadlineFromRisk(record),
+    slaHoras: workflowSlaFromRisk(record),
+    estadoWorkflow: "Abierto",
+    requiereFirmaElectronica: requiresSignature ? "Sí" : "No",
+    firmaAsociada: requiresSignature ? `SIG-${sourceCode}` : "",
+    requiereEscalamiento: requiresEscalation ? "Sí" : "No",
+    escaladoA: requiresEscalation ? "QA Manager / Dirección técnica" : "",
+    motivoWorkflow: `Workflow QA generado desde riesgo ${sourceCode}. Mitigación: ${bridgeRiskClean(record.planMitigacion) || "pendiente"}. Consecuencia: ${bridgeRiskClean(record.consecuenciaPotencial) || "pendiente"}.`,
+    decisionQA: "Pendiente QA",
+    auditTrailReferencia: `AUDIT-WF-${sourceCode}`,
+    evidencia: bridgeRiskClean(record.evidencia),
+    desviacionAsociada: bridgeRiskClean(record.desviacionAsociada),
+    capa: bridgeRiskClean(record.capa) || (capaRequired ? "Definir CAPA asociada a mitigación del riesgo antes del cierre." : ""),
+    observaciones: `Borrador importado desde Gestión de Riesgos. RPN ${bridgeRiskClean(record.rpnCalculado) || "pendiente"}; nivel ${bridgeRiskClean(record.nivelRiesgo) || "pendiente"}. Revisar responsables, SLA, firma, escalamiento y evidencia antes de guardar.`,
+  };
+}
+
 function loadRiskDraftFromChange(): Partial<RiskRecord> | null {
   if (typeof window === "undefined") return null;
 
@@ -755,6 +884,30 @@ export default function RiesgosPage() {
     showCloud("Riesgo eliminado del almacenamiento local.", [], "success");
   }
 
+
+  function handleCreateWorkflowDraft(record: RiskRecord, redirect = false) {
+    if (typeof window === "undefined") return;
+
+    if (!bridgeRiskClean(record.codigoRiesgo) && !bridgeRiskClean(record.descripcionRiesgo)) {
+      showCloud("No se creó workflow. Registra al menos código o descripción del riesgo.", [], "warning");
+      return;
+    }
+
+    const draft = buildWorkflowDraftFromRisk(record);
+    window.localStorage.setItem(WORKFLOW_DRAFT_KEY, JSON.stringify(draft));
+
+    if (redirect) {
+      window.location.href = "/workflows";
+      return;
+    }
+
+    showCloud(
+      "Borrador de workflow QA creado para /workflows.",
+      [`Workflow sugerido: ${draft.codigoWorkflow}`, `Prioridad sugerida: ${draft.prioridad}`, "Abre /workflows para revisar y guardar."],
+      "success"
+    );
+  }
+
   function exportJson() {
     if (records.length === 0) {
       showCloud("No hay riesgos para exportar.", [], "warning");
@@ -981,6 +1134,9 @@ export default function RiesgosPage() {
 
               <button type="button" onClick={resetForm} className="rounded-2xl border border-slate-600 px-6 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">
                 Limpiar formulario
+              </button>
+              <button type="button" onClick={() => handleCreateWorkflowDraft(form, true)} className="rounded-2xl border border-violet-300/50 px-6 py-3 text-sm font-black text-violet-100 transition hover:bg-violet-950/60">
+                Enviar a Workflow QA
               </button>
             </div>
           </form>

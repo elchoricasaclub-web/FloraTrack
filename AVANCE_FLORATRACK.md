@@ -63,3 +63,13 @@ Se agrego conexion local entre `/cambios` y `/riesgos`:
 - El borrador se guarda en `localStorage` con clave `floratrack_bridge_cambios_to_riesgos_v1`.
 - `/riesgos` importa automaticamente el borrador, precarga el formulario, elimina la clave puente y solicita revision QA antes de guardar.
 - No reemplaza decision QA ni matriz QRM formal; acelera trazabilidad entre Control de Cambios y Gestion de Riesgos.
+
+
+## Puente Riesgos -> Workflows QA
+
+Se agregó conexión local entre `/riesgos` y `/workflows`:
+- `/riesgos` genera un borrador de workflow QA desde el formulario de riesgo.
+- El borrador se guarda en `localStorage` con la clave `floratrack_bridge_riesgos_to_workflows_v1`.
+- `/workflows` importa automáticamente el borrador, precarga el formulario y elimina la clave puente.
+- El flujo sugiere prioridad, SLA, responsable, módulo origen, firma electrónica, escalamiento, CAPA y audit trail.
+- No reemplaza la decisión QA formal: acelera la trazabilidad desde QRM hacia ejecución operativa.

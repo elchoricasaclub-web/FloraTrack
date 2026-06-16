@@ -170,3 +170,13 @@ En esta fase se conecto `/cambios` con `/riesgos` mediante borrador local:
 - Clave localStorage: `floratrack_bridge_cambios_to_riesgos_v1`.
 - Botones agregados: `Enviar a Riesgos QRM` en formulario y `Riesgo QRM` en tarjetas guardadas.
 - `/riesgos` importa el borrador y exige revision antes de guardar el riesgo.
+
+
+## Puente Riesgos -> Workflows QA
+
+En esta fase se conectó `/riesgos` con `/workflows` mediante borrador local:
+- Emisor: `src/app/riesgos/page.tsx`.
+- Receptor: `src/app/workflows/page.tsx`.
+- Clave localStorage: `floratrack_bridge_riesgos_to_workflows_v1`.
+- Botón agregado en `/riesgos`: `Enviar a Workflow QA`.
+- `/workflows` importa el borrador y solicita revisión QA antes de guardar.
