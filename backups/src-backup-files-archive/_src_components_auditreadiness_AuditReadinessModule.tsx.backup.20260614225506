@@ -1,0 +1,52 @@
+"use client";
+
+import DbCrudModule from "../ui/DbCrudModule";
+
+export default function AuditReadinessModule() {
+  return (
+    <DbCrudModule
+      title="Audit Readiness"
+      description="Checklist de preparación para auditoría externa GACP/GMP/GxP: requisito, evidencia, score, estado y responsable."
+      apiPath="/api/analytics/readiness"
+      buttonLabel="Nuevo Requisito"
+      icon="✅"
+      emptyForm={{
+        id: "",
+        code: "",
+        area: "GACP",
+        requirement: "",
+        evidence: "",
+        score: "",
+        status: "Pendiente",
+        owner: "",
+      }}
+      fields={[
+        { name: "code", label: "Código requisito", required: true },
+        { name: "area", label: "Área", required: true },
+        { name: "requirement", label: "Requisito", required: true },
+        { name: "evidence", label: "Evidencia" },
+        { name: "score", label: "Score %", type: "number" },
+        { name: "owner", label: "Responsable" },
+        {
+          name: "status",
+          label: "Estado",
+          type: "select",
+          options: [
+            { label: "Pendiente", value: "Pendiente" },
+            { label: "En progreso", value: "En progreso" },
+            { label: "Cumple", value: "Cumple" },
+            { label: "No cumple", value: "No cumple" },
+            { label: "Completado", value: "Completado" },
+          ],
+        },
+      ]}
+      columns={[
+        { label: "Código", accessor: "code" },
+        { label: "Área", accessor: "area" },
+        { label: "Requisito", accessor: "requirement" },
+        { label: "Score", accessor: "score" },
+        { label: "Responsable", accessor: "owner" },
+      ]}
+    />
+  );
+}

@@ -1,0 +1,641 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
+
+type Setter = (value: string) => void;
+
+type MainLayoutProps = {
+  children?: ReactNode;
+
+  activeSection?: string;
+  setActiveSection?: Setter;
+
+  selectedSection?: string;
+  setSelectedSection?: Setter;
+
+  activeModule?: string;
+  setActiveModule?: Setter;
+
+  selectedModule?: string;
+  setSelectedModule?: Setter;
+
+  currentModule?: string;
+  setCurrentModule?: Setter;
+
+  activeMenu?: string;
+  setActiveMenu?: Setter;
+
+  activeTab?: string;
+  setActiveTab?: Setter;
+
+  onSelectModule?: Setter;
+  onChangeModule?: Setter;
+  onMenuClick?: Setter;
+
+  [key: string]: any;
+};
+
+type NavItem = {
+  key: string;
+  label: string;
+  description: string;
+  badge?: string;
+  priority?: "critical" | "high" | "normal" | "system";
+  aliases?: string[];
+};
+
+type NavGroup = {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    id: "executive",
+    title: "Comando Ejecutivo",
+    subtitle: "Dirección, score global y señales críticas",
+    icon: "◈",
+    items: [
+      {
+        key: "Dashboard",
+        label: "Dashboard Ejecutivo",
+        description: "Vista general del cumplimiento, operación, riesgos y avance.",
+        badge: "Premium",
+        priority: "high",
+        aliases: ["Dashboard Ejecutivo", "Inicio"],
+      },
+      {
+        key: "Command Center",
+        label: "Command Center",
+        description: "Centro de mando para alertas, recomendaciones y decisiones.",
+        badge: "Live",
+        priority: "critical",
+        aliases: ["Centro de Comando"],
+      },
+      {
+        key: "Control Tower",
+        label: "Control Tower",
+        description: "Torre de control 360 para empresa, calidad, operación e IA.",
+        badge: "360",
+        priority: "high",
+        aliases: ["Torre de Control"],
+      },
+      {
+        key: "Scorecard",
+        label: "Scorecard",
+        description: "Indicadores, KPIs, avances y riesgo ejecutivo.",
+        badge: "KPI",
+        priority: "normal",
+        aliases: ["Quality Scorecard"],
+      },
+    ],
+  },
+  {
+    id: "operations",
+    title: "Operación GACP",
+    subtitle: "Predios, genética, propagación, cultivo y cosecha",
+    icon: "◆",
+    items: [
+      {
+        key: "Empresas",
+        label: "Empresas",
+        description: "Clientes, compañías, sedes y operación multiempresa.",
+        badge: "Core",
+        priority: "normal",
+        aliases: ["Companies", "Company"],
+      },
+      {
+        key: "Usuarios",
+        label: "Usuarios",
+        description: "Usuarios operativos, responsables y roles internos.",
+        badge: "Core",
+        priority: "normal",
+        aliases: ["Users"],
+      },
+      {
+        key: "Predios",
+        label: "Predios",
+        description: "Fincas, áreas, lotes, infraestructura y ubicación.",
+        badge: "GACP",
+        priority: "normal",
+        aliases: ["Farms", "Fincas"],
+      },
+      {
+        key: "GIS",
+        label: "GIS",
+        description: "Mapas, áreas, georreferenciación y visión territorial.",
+        badge: "Map",
+        priority: "normal",
+      },
+      {
+        key: "Genéticas",
+        label: "Genéticas",
+        description: "Banco genético, registros varietales y trazabilidad.",
+        badge: "Germplasm",
+        priority: "high",
+        aliases: ["Geneticas", "Genetics"],
+      },
+      {
+        key: "Propagación",
+        label: "Propagación",
+        description: "Madres, esquejes, clones, enraizamiento y sanidad.",
+        badge: "GACP",
+        priority: "high",
+        aliases: ["Propagacion", "Propagation"],
+      },
+      {
+        key: "Cultivos",
+        label: "Cultivos",
+        description: "Cultivo activo, fenología, riego, nutrición y sanidad.",
+        badge: "Live",
+        priority: "critical",
+        aliases: ["Cultivo", "Crops"],
+      },
+      {
+        key: "Cosecha",
+        label: "Cosecha",
+        description: "Planificación, inspección, corte, pesaje y rendimiento.",
+        badge: "Harvest",
+        priority: "high",
+        aliases: ["Harvest"],
+      },
+    ],
+  },
+  {
+    id: "strategic",
+    title: "Procesos Estratégicos",
+    subtitle: "Micropropagación, Live Rosin, laboratorio y calidad analítica",
+    icon: "◇",
+    items: [
+      {
+        key: "Micropropagación",
+        label: "Micropropagación",
+        description: "Explantes, multiplicación, contaminación y aclimatación.",
+        badge: "Biotech",
+        priority: "critical",
+        aliases: ["Micropropagacion", "Micropropagation"],
+      },
+      {
+        key: "Live Rosin",
+        label: "Live Rosin",
+        description: "Biomasa, bubble hash, liofilización, prensado y COA.",
+        badge: "Solventless",
+        priority: "critical",
+        aliases: ["Live Rosin Enterprise", "LiveRosin"],
+      },
+      {
+        key: "LIMS",
+        label: "LIMS",
+        description: "Muestras, análisis, COA, equipos, calibración y custodia.",
+        badge: "Lab",
+        priority: "high",
+        aliases: ["Lims", "LIMS Enterprise"],
+      },
+      {
+        key: "ISO 17025",
+        label: "ISO 17025",
+        description: "Alcance, métodos, imparcialidad, aptitud y acreditación.",
+        badge: "ISO",
+        priority: "high",
+        aliases: ["ISO/IEC 17025", "Iso17025"],
+      },
+      {
+        key: "COA",
+        label: "COA",
+        description: "Certificados de análisis, resultados y liberación QA.",
+        badge: "QC",
+        priority: "high",
+      },
+    ],
+  },
+  {
+    id: "quality",
+    title: "QMS / Auditoría / Regulatorio",
+    subtitle: "CAPA, documentos, CSV, certificaciones y audit readiness",
+    icon: "▣",
+    items: [
+      {
+        key: "Plan de Cumplimiento",
+        label: "Plan de Cumplimiento",
+        description: "Licencias, certificaciones, requisitos y brechas.",
+        badge: "RegTech",
+        priority: "critical",
+        aliases: ["Compliance", "Cumplimiento"],
+      },
+      {
+        key: "Certificaciones",
+        label: "Certificaciones y Licencias",
+        description: "GACP, GMP, ISO, licencias, vencimientos y evidencias.",
+        badge: "Audit",
+        priority: "critical",
+        aliases: ["Certificaciones y Licencias"],
+      },
+      {
+        key: "CAPA",
+        label: "CAPA",
+        description: "Acciones correctivas, causa raíz, eficacia y cierre QA.",
+        badge: "QMS",
+        priority: "critical",
+      },
+      {
+        key: "Auditorías",
+        label: "Auditorías",
+        description: "Auditorías internas, externas, proveedor y hallazgos.",
+        badge: "Audit",
+        priority: "high",
+        aliases: ["Auditorias", "Audits", "Auditoría"],
+      },
+      {
+        key: "Audit Readiness",
+        label: "Audit Readiness",
+        description: "Preparación para auditoría, evidencia y brechas abiertas.",
+        badge: "Ready",
+        priority: "high",
+      },
+      {
+        key: "Documentos",
+        label: "Documentos y SOP",
+        description: "SOP, registros, versiones, aprobación y vigencia.",
+        badge: "SOP",
+        priority: "high",
+        aliases: ["Documentos y SOP", "Documents"],
+      },
+      {
+        key: "CSV Enterprise",
+        label: "Validación CSV",
+        description: "URS, FRS, RTM, IQ/OQ/PQ, evidencias y desviaciones.",
+        badge: "CSV",
+        priority: "critical",
+        aliases: ["Validación CSV Enterprise", "CSV", "Csv Validation"],
+      },
+    ],
+  },
+  {
+    id: "saas-ai",
+    title: "SaaS / Seguridad / IA",
+    subtitle: "Multiempresa, RBAC, IA regulatoria y gobierno de modelos",
+    icon: "⬢",
+    items: [
+      {
+        key: "SaaS Multiempresa",
+        label: "SaaS Multiempresa",
+        description: "Tenants, sedes, módulos, onboarding y suscripción.",
+        badge: "SaaS",
+        priority: "high",
+        aliases: ["SaaS", "SaaS Platform"],
+      },
+      {
+        key: "Security RBAC",
+        label: "Seguridad RBAC",
+        description: "Roles, permisos, accesos, MFA y segregación.",
+        badge: "RBAC",
+        priority: "critical",
+        aliases: ["RBAC", "Seguridad RBAC"],
+      },
+      {
+        key: "IA Regulatoria",
+        label: "IA Regulatoria",
+        description: "Brechas, recomendaciones, evidencia y revisión humana.",
+        badge: "AI",
+        priority: "high",
+        aliases: ["Inteligencia Regulatoria IA", "Regulatory AI"],
+      },
+      {
+        key: "AI Gateway",
+        label: "AI Gateway",
+        description: "Proveedores IA, prompts, guardrails, logs y evaluación.",
+        badge: "Gateway",
+        priority: "high",
+      },
+      {
+        key: "Private AI",
+        label: "IA Privada",
+        description: "Ruta futura para IA local, RAG privado y corpus interno.",
+        badge: "Local",
+        priority: "normal",
+        aliases: ["IA Privada", "Private AI Console"],
+      },
+    ],
+  },
+  {
+    id: "system",
+    title: "Herramientas del Sistema",
+    subtitle: "UX, diagnóstico, respaldo, exportación y utilidades",
+    icon: "▦",
+    items: [
+      {
+        key: "UX Item Studio",
+        label: "UX Item Studio",
+        description: "Explorador de estilos visuales para ítems modernos.",
+        badge: "UX",
+        priority: "system",
+      },
+      {
+        key: "Ítems por Módulo",
+        label: "Ítems por Módulo",
+        description: "Diseño de ítems por módulo real de FloraTrack.",
+        badge: "UX",
+        priority: "system",
+        aliases: ["Items Modulos", "UX Module Items"],
+      },
+      {
+        key: "App Doctor",
+        label: "App Doctor",
+        description: "Diagnóstico visual de módulos, imports y estado de app.",
+        badge: "Doctor",
+        priority: "system",
+      },
+      {
+        key: "Backup",
+        label: "Backup",
+        description: "Respaldo, restauración y protección del proyecto.",
+        badge: "Safe",
+        priority: "system",
+      },
+      {
+        key: "Export Center",
+        label: "Export Center",
+        description: "Exportación de reportes, expedientes, CSV, PDF y Word.",
+        badge: "Export",
+        priority: "system",
+        aliases: ["Exportación", "Exportaciones"],
+      },
+    ],
+  },
+];
+
+function priorityClass(priority?: NavItem["priority"]) {
+  if (priority === "critical") return "bg-red-100 text-red-700 border-red-200";
+  if (priority === "high") return "bg-amber-100 text-amber-700 border-amber-200";
+  if (priority === "system") return "bg-slate-100 text-slate-600 border-slate-200";
+  return "bg-green-100 text-green-700 border-green-200";
+}
+
+function itemMatchesActive(item: NavItem, active: string) {
+  return item.key === active || item.label === active || Boolean(item.aliases?.includes(active));
+}
+
+export default function MainLayout(props: MainLayoutProps) {
+  const {
+    children,
+
+    activeSection,
+    selectedSection,
+    activeModule: activeModuleProp,
+    selectedModule,
+    currentModule,
+    activeMenu,
+    activeTab,
+
+    setActiveSection,
+    setSelectedSection,
+    setActiveModule,
+    setSelectedModule,
+    setCurrentModule,
+    setActiveMenu,
+    setActiveTab,
+
+    onSelectModule,
+    onChangeModule,
+    onMenuClick,
+  } = props;
+
+  const activeModule = String(
+    activeSection ??
+      selectedSection ??
+      activeModuleProp ??
+      selectedModule ??
+      currentModule ??
+      activeMenu ??
+      activeTab ??
+      "Dashboard"
+  );
+
+  const selectModule: Setter =
+    setActiveSection ??
+    setSelectedSection ??
+    setActiveModule ??
+    setSelectedModule ??
+    setCurrentModule ??
+    setActiveMenu ??
+    setActiveTab ??
+    onSelectModule ??
+    onChangeModule ??
+    onMenuClick ??
+    (() => {});
+
+  const defaultOpen = useMemo(() => {
+    return navGroups.reduce<Record<string, boolean>>((acc, group) => {
+      acc[group.id] = true;
+      return acc;
+    }, {});
+  }, []);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(defaultOpen);
+  const [search, setSearch] = useState("");
+
+  const activeGroup = useMemo(() => {
+    return navGroups.find((group) =>
+      group.items.some((item) => itemMatchesActive(item, activeModule))
+    );
+  }, [activeModule]);
+
+  const filteredGroups = useMemo(() => {
+    const clean = search.trim().toLowerCase();
+
+    if (!clean) return navGroups;
+
+    return navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => {
+          return (
+            item.label.toLowerCase().includes(clean) ||
+            item.key.toLowerCase().includes(clean) ||
+            item.description.toLowerCase().includes(clean) ||
+            item.badge?.toLowerCase().includes(clean) ||
+            item.aliases?.some((alias) => alias.toLowerCase().includes(clean))
+          );
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [search]);
+
+  function toggleGroup(groupId: string) {
+    setOpenGroups((current) => ({
+      ...current,
+      [groupId]: !current[groupId],
+    }));
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <aside className="fixed left-0 top-0 z-40 h-screen w-86 border-r border-slate-200 bg-white shadow-sm">
+        <div className="flex h-full flex-col">
+          <div className="border-b border-slate-100 p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600 text-xl font-black text-white">
+                F
+              </div>
+
+              <div>
+                <div className="text-xl font-black leading-none text-slate-950">
+                  FloraTrack
+                </div>
+                <div className="mt-1 text-xs font-bold uppercase tracking-widest text-green-600">
+                  Enterprise Compliance
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border bg-slate-50 p-4">
+              <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                Módulo activo
+              </div>
+              <div className="mt-1 text-lg font-black text-slate-900">
+                {activeModule}
+              </div>
+              <div className="mt-1 text-xs font-semibold text-slate-500">
+                {activeGroup?.title ?? "Sistema"}
+              </div>
+            </div>
+
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar módulo..."
+              className="mt-4 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold outline-none focus:border-green-500"
+            />
+          </div>
+
+          <nav className="flex-1 space-y-3 overflow-y-auto p-4">
+            {filteredGroups.map((group) => {
+              const isOpen = openGroups[group.id] ?? true;
+
+              return (
+                <div key={group.id} className="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className="flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left transition hover:bg-white"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-lg font-black text-green-700 shadow-sm">
+                        {group.icon}
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-black text-slate-900">
+                          {group.title}
+                        </div>
+                        <div className="text-xs font-medium text-slate-500">
+                          {group.subtitle}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-lg font-black text-slate-400">
+                      {isOpen ? "−" : "+"}
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div className="mt-2 space-y-2">
+                      {group.items.map((item) => {
+                        const active = itemMatchesActive(item, activeModule);
+
+                        return (
+                          <button
+                            key={item.key}
+                            onClick={() => selectModule(item.key)}
+                            className={`w-full rounded-2xl border p-4 text-left transition ${
+                              active
+                                ? "border-green-300 bg-green-50 shadow-sm"
+                                : "border-transparent bg-white hover:border-slate-200 hover:shadow-sm"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className={`text-sm font-black ${active ? "text-green-800" : "text-slate-900"}`}>
+                                  {item.label}
+                                </div>
+                                <div className="mt-1 text-xs leading-relaxed text-slate-500">
+                                  {item.description}
+                                </div>
+                              </div>
+
+                              {item.badge && (
+                                <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-black ${priorityClass(item.priority)}`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {filteredGroups.length === 0 && (
+              <div className="rounded-3xl border bg-white p-6 text-center">
+                <div className="text-lg font-black text-slate-900">
+                  Sin resultados
+                </div>
+                <div className="mt-2 text-sm text-slate-500">
+                  No encontré módulos con esa búsqueda.
+                </div>
+              </div>
+            )}
+          </nav>
+
+          <div className="border-t border-slate-100 p-4">
+            <div className="rounded-3xl bg-slate-950 p-4 text-white">
+              <div className="text-xs font-bold uppercase tracking-widest text-green-300">
+                Estado plataforma
+              </div>
+              <div className="mt-1 text-lg font-black">MVP Enterprise</div>
+              <div className="mt-2 text-xs text-slate-300">
+                Menú reorganizado por áreas críticas para operación, auditoría, SaaS e IA.
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main className="min-h-screen pl-86">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-8 py-5 backdrop-blur">
+          <div className="flex items-center justify-between gap-5">
+            <div>
+              <div className="text-xs font-black uppercase tracking-widest text-green-600">
+                {activeGroup?.title ?? "FloraTrack"}
+              </div>
+              <h1 className="mt-1 text-3xl font-black text-slate-950">
+                {activeModule}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="rounded-2xl border bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm">
+                Audit Trail
+              </button>
+
+              <button className="rounded-2xl bg-green-600 px-5 py-3 text-sm font-black text-white shadow-sm">
+                Nuevo Registro
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <section className="p-8">
+          {children}
+        </section>
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,186 @@
+const modules = [
+  { name: "Dashboard", href: "/", tag: "Inicio" },
+  { name: "Cultivos", href: "/cultivos", tag: "GACP" },
+  { name: "Propagación", href: "/propagacion", tag: "Clones" },
+  { name: "Cosecha", href: "/cosecha", tag: "GACP" },
+  { name: "Audit Trail", href: "/audit-trail", tag: "Audit" },
+  { name: "Nuevo Registro", href: "/new-record", tag: "Crear" },
+  { name: "Genéticas", href: "/geneticas", tag: "Próximo" },
+  { name: "Predios", href: "/", tag: "Próximo" },
+  { name: "Empresas", href: "/", tag: "Próximo" },
+  { name: "Usuarios", href: "/", tag: "Próximo" },
+  { name: "GIS", href: "/", tag: "Próximo" },
+  { name: "CAPA", href: "/", tag: "Próximo" },
+  { name: "Documentos", href: "/", tag: "Próximo" },
+  { name: "CSV", href: "/", tag: "Próximo" },
+  { name: "Micropropagación", href: "/", tag: "Próximo" },
+  { name: "Live Rosin", href: "/", tag: "Próximo" },
+  { name: "LIMS", href: "/", tag: "Próximo" },
+  { name: "ISO 17025", href: "/", tag: "Próximo" }
+];
+
+const cards = [
+  {
+    title: "Cultivos",
+    subtitle: "Producción agrícola GACP",
+    description: "Crear, editar, eliminar, buscar y guardar cultivos con validación obligatoria.",
+    href: "/cultivos",
+    tag: "Activo"
+  },
+  {
+    title: "Propagación",
+    subtitle: "Madres, esquejes y clones",
+    description: "Trazabilidad real de plantas madre, genética, lotes, ambiente y evidencia.",
+    href: "/propagacion",
+    tag: "Activo"
+  },
+  {
+    title: "Cosecha",
+    subtitle: "Corte, pesaje y trazabilidad",
+    description: "Registro validado de cosecha con cultivo asociado, genética, cantidad y evidencia.",
+    href: "/cosecha",
+    tag: "Activo"
+  },
+  {
+    title: "Audit Trail",
+    subtitle: "Trazabilidad de acciones",
+    description: "Historial de acciones, navegación, botones ejecutados y evidencias funcionales.",
+    href: "/audit-trail",
+    tag: "Activo"
+  }
+];
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <aside className="fixed left-0 top-0 h-screen w-[300px] overflow-y-auto border-r bg-white p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600 text-xl font-black text-white">
+            F
+          </div>
+
+          <div>
+            <div className="text-2xl font-black">FloraTrack</div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-600">
+              Enterprise Platform
+            </div>
+          </div>
+        </div>
+
+        <input
+          placeholder="Buscar módulo..."
+          className="mt-8 w-full rounded-2xl border px-4 py-4 font-semibold"
+        />
+
+        <div className="mt-8 text-xs font-black uppercase tracking-widest text-slate-400">
+          Módulos principales
+        </div>
+
+        <nav className="mt-4 space-y-2 pb-20">
+          {modules.map((module) => (
+            <a
+              key={module.name}
+              href={module.href}
+              className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left font-black ${
+                module.name === "Dashboard"
+                  ? "bg-green-600 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <span>{module.name}</span>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                {module.tag}
+              </span>
+            </a>
+          ))}
+        </nav>
+      </aside>
+
+      <section className="ml-[300px] min-h-screen pb-20">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-white px-8 py-6">
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-600">
+              FloraTrack
+            </div>
+
+            <h1 className="text-4xl font-black">Dashboard</h1>
+          </div>
+
+          <div className="flex gap-3">
+            <a href="/audit-trail" className="rounded-2xl border px-6 py-4 font-black text-slate-800">
+              Audit Trail
+            </a>
+
+            <a href="/new-record" className="rounded-2xl bg-green-600 px-6 py-4 font-black text-white">
+              Nuevo Registro
+            </a>
+          </div>
+        </header>
+
+        <div className="p-8">
+          <section className="rounded-[2rem] bg-slate-950 p-10 text-white shadow-2xl">
+            <div className="text-xs font-black uppercase tracking-widest text-green-400">
+              FloraTrack Executive
+            </div>
+
+            <h2 className="mt-4 text-7xl font-black leading-none">
+              Dashboard Ejecutivo
+            </h2>
+
+            <p className="mt-6 max-w-3xl text-lg text-slate-200">
+              Vista profesional del desempeño general de FloraTrack: cumplimiento, operaciones,
+              auditoría, GACP, cosecha, propagación y trazabilidad.
+            </p>
+
+            <div className="mt-10 grid grid-cols-4 gap-5">
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">Módulos reales</div>
+                <div className="mt-3 text-5xl font-black">4</div>
+              </div>
+
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">Validación</div>
+                <div className="mt-3 text-5xl font-black text-green-300">ON</div>
+              </div>
+
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">APIs</div>
+                <div className="mt-3 text-5xl font-black text-green-300">OK</div>
+              </div>
+
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">Riesgo</div>
+                <div className="mt-3 text-5xl font-black text-green-300">Bajo</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8 grid grid-cols-2 gap-6">
+            {cards.map((item) => (
+              <article key={item.title} className="rounded-3xl border bg-white p-8 shadow-sm">
+                <div className="text-xs font-black uppercase tracking-widest text-green-600">
+                  {item.subtitle}
+                </div>
+
+                <h3 className="mt-4 text-4xl font-black">{item.title}</h3>
+
+                <p className="mt-4 text-slate-500">{item.description}</p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-black text-green-700">
+                    {item.tag}
+                  </span>
+
+                  <a href={item.href} className="rounded-full bg-green-600 px-5 py-2 text-sm font-black text-white">
+                    Abrir módulo
+                  </a>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </section>
+    </main>
+  );
+}
+

@@ -1,0 +1,464 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+type TabConfig = {
+  model: string;
+  title: string;
+  description: string;
+  fields: string[];
+};
+
+const tabs: TabConfig[] = [
+  {
+    model: "scope",
+    title: "Alcance acreditación",
+    description: "Alcance ISO/IEC 17025, organismo acreditador, áreas de ensayo, país, vigencia y responsable.",
+    fields: ["code", "companyName", "labName", "accreditationBody", "country", "standardVersion", "testAreas", "scopeStatus", "expiryDate", "responsible", "status"],
+  },
+  {
+    model: "requirements",
+    title: "Requisitos ISO 17025",
+    description: "Cláusulas, evidencia requerida, SOP, responsable, riesgo y estado de cumplimiento.",
+    fields: ["code", "clauseCode", "clauseTitle", "requirementText", "evidenceRequired", "sopRequired", "responsibleRole", "riskLevel", "status"],
+  },
+  {
+    model: "method-validation",
+    title: "Validación métodos",
+    description: "Validación/verificación de métodos, parámetros, criterios de aceptación y aprobación.",
+    fields: ["code", "methodCode", "methodName", "matrixType", "validationParameters", "acceptanceCriteria", "validationStatus", "approvedBy", "status"],
+  },
+  {
+    model: "instruments",
+    title: "Instrumentos",
+    description: "Inventario de instrumentos, serie, ubicación, calibración, calificación, mantenimiento y responsable.",
+    fields: ["code", "instrumentName", "instrumentType", "serialNumber", "location", "calibrationDueDate", "qualificationStatus", "maintenanceStatus", "responsible", "status"],
+  },
+  {
+    model: "calibrations",
+    title: "Calibraciones",
+    description: "Registros de calibración, proveedor, certificado, resultado, incertidumbre y vigencia.",
+    fields: ["code", "instrumentCode", "calibrationDate", "dueDate", "provider", "certificateNumber", "result", "uncertainty", "status"],
+  },
+  {
+    model: "uncertainty",
+    title: "Incertidumbre",
+    description: "Incertidumbre de medición por método, analito, matriz, factor de cobertura y nivel de confianza.",
+    fields: ["code", "methodCode", "analyte", "matrixType", "uncertaintyValue", "coverageFactor", "confidenceLevel", "reviewedBy", "status"],
+  },
+  {
+    model: "proficiency",
+    title: "Ensayos aptitud",
+    description: "Proveedores, rondas, analitos, evaluación, acciones correctivas y responsable.",
+    fields: ["code", "provider", "roundCode", "analyte", "methodCode", "resultEvaluation", "correctiveAction", "responsible", "status"],
+  },
+  {
+    model: "custody",
+    title: "Cadena custodia",
+    description: "Recepción de muestra, condición, almacenamiento, responsable y estado de custodia.",
+    fields: ["code", "sampleCode", "receivedBy", "receivedDate", "conditionAtReceipt", "storageCondition", "custodyStatus", "status"],
+  },
+  {
+    model: "review",
+    title: "Revisión resultados",
+    description: "Revisión técnica de resultados, decisión frente a especificación, analista, revisor y estado.",
+    fields: ["code", "sampleCode", "methodCode", "analyst", "resultSummary", "specificationDecision", "reviewer", "reviewStatus", "status"],
+  },
+  {
+    model: "control-charts",
+    title: "Control charts",
+    description: "Control estadístico de calidad por método, muestra QC, parámetro, valor, tendencia e investigación.",
+    fields: ["code", "methodCode", "qcSample", "parameterName", "valueRecorded", "trendStatus", "investigationRequired", "status"],
+  },
+];
+
+function emptyForm(fields: string[]) {
+  return fields.reduce((acc: Record<string, string>, field) => {
+    acc[field] = "";
+    return acc;
+  }, {});
+}
+
+function label(field: string) {
+  const labels: Record<string, string> = {
+    code: "Código",
+    companyName: "Empresa",
+    labName: "Laboratorio",
+    accreditationBody: "Organismo acreditador",
+    country: "País",
+    standardVersion: "Versión estándar",
+    testAreas: "Áreas de ensayo",
+    scopeStatus: "Estado alcance",
+    expiryDate: "Vencimiento",
+    responsible: "Responsable",
+    status: "Estado",
+    clauseCode: "Cláusula",
+    clauseTitle: "Título cláusula",
+    requirementText: "Requisito",
+    evidenceRequired: "Evidencia requerida",
+    sopRequired: "SOP requerido",
+    responsibleRole: "Rol responsable",
+    riskLevel: "Riesgo",
+    methodCode: "Código método",
+    methodName: "Nombre método",
+    matrixType: "Matriz",
+    validationParameters: "Parámetros validación",
+    acceptanceCriteria: "Criterios aceptación",
+    validationStatus: "Estado validación",
+    approvedBy: "Aprobado por",
+    instrumentName: "Instrumento",
+    instrumentType: "Tipo instrumento",
+    serialNumber: "Serie",
+    location: "Ubicación",
+    calibrationDueDate: "Vence calibración",
+    qualificationStatus: "Estado calificación",
+    maintenanceStatus: "Estado mantenimiento",
+    instrumentCode: "Código instrumento",
+    calibrationDate: "Fecha calibración",
+    dueDate: "Fecha vencimiento",
+    provider: "Proveedor",
+    certificateNumber: "Certificado",
+    result: "Resultado",
+    uncertainty: "Incertidumbre",
+    analyte: "Analito",
+    uncertaintyValue: "Valor incertidumbre",
+    coverageFactor: "Factor cobertura",
+    confidenceLevel: "Nivel confianza",
+    reviewedBy: "Revisado por",
+    roundCode: "Ronda",
+    resultEvaluation: "Evaluación resultado",
+    correctiveAction: "Acción correctiva",
+    sampleCode: "Muestra",
+    receivedBy: "Recibido por",
+    receivedDate: "Fecha recepción",
+    conditionAtReceipt: "Condición recepción",
+    storageCondition: "Condición almacenamiento",
+    custodyStatus: "Estado custodia",
+    analyst: "Analista",
+    resultSummary: "Resumen resultado",
+    specificationDecision: "Decisión especificación",
+    reviewer: "Revisor",
+    reviewStatus: "Estado revisión",
+    qcSample: "Muestra QC",
+    parameterName: "Parámetro",
+    valueRecorded: "Valor",
+    trendStatus: "Tendencia",
+    investigationRequired: "Investigación requerida",
+  };
+
+  return labels[field] || field;
+}
+
+function scoreColor(score: number) {
+  if (score >= 90) return "text-green-600";
+  if (score >= 75) return "text-amber-600";
+  return "text-red-600";
+}
+
+export default function Iso17025LabEnterpriseModule() {
+  const [activeModel, setActiveModel] = useState("scope");
+  const [records, setRecords] = useState<any[]>([]);
+  const [dashboard, setDashboard] = useState<any | null>(null);
+  const [message, setMessage] = useState("Cargando Laboratorio QC ISO 17025...");
+  const activeTab = useMemo(
+    () => tabs.find((item) => item.model === activeModel) || tabs[0],
+    [activeModel]
+  );
+  const [form, setForm] = useState<Record<string, string>>(emptyForm(activeTab.fields));
+
+  async function loadDashboard() {
+    try {
+      const response = await fetch("/api/enterprise/iso17025-lab", {
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (result.ok) {
+        setDashboard(result);
+      }
+    } catch {}
+  }
+
+  async function loadData(model = activeModel) {
+    try {
+      const response = await fetch(`/api/enterprise/iso17025-lab/${model}`, {
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!result.ok) {
+        setMessage(result.error || "Error cargando registros.");
+        setRecords([]);
+        return;
+      }
+
+      setRecords(result.data || []);
+      setMessage("Registros cargados correctamente.");
+      loadDashboard();
+    } catch {
+      setMessage("No se pudo conectar Laboratorio QC ISO 17025.");
+      setRecords([]);
+    }
+  }
+
+  async function createRecord() {
+    try {
+      const response = await fetch(`/api/enterprise/iso17025-lab/${activeModel}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
+      });
+
+      const result = await response.json();
+
+      if (!result.ok) {
+        setMessage(result.error || "Error creando registro.");
+        return;
+      }
+
+      setForm(emptyForm(activeTab.fields));
+      setMessage("Registro creado correctamente.");
+      loadData(activeModel);
+    } catch {
+      setMessage("No se pudo crear el registro.");
+    }
+  }
+
+  useEffect(() => {
+    const tab = tabs.find((item) => item.model === activeModel) || tabs[0];
+    setForm(emptyForm(tab.fields));
+    loadData(activeModel);
+  }, [activeModel]);
+
+  return (
+    <section className="bg-white rounded-2xl shadow p-8">
+      <div className="flex justify-between items-start gap-6 mb-8">
+        <div>
+          <div className="text-sm font-black text-green-600 mb-2">
+            FloraTrack Enterprise
+          </div>
+
+          <h2 className="text-5xl font-black text-slate-800">
+            Laboratorio QC ISO/IEC 17025
+          </h2>
+
+          <p className="text-slate-500 mt-3 max-w-5xl leading-relaxed">
+            Sistema de gestión para laboratorios de ensayo y control de calidad:
+            acreditación, requisitos ISO/IEC 17025, métodos, validación,
+            instrumentos, calibración, incertidumbre, aptitud, custodia, revisión
+            de resultados y control estadístico.
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            loadDashboard();
+            loadData(activeModel);
+          }}
+          className="bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl shadow text-lg font-bold"
+        >
+          Actualizar
+        </button>
+      </div>
+
+      <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 mb-8 font-semibold">
+        {message}
+      </div>
+
+      {dashboard && (
+        <div className="grid grid-cols-6 gap-4 mb-8">
+          <div className="border rounded-xl p-5">
+            <div className="text-sm text-slate-500">Readiness</div>
+            <div className={`text-5xl font-black mt-2 ${scoreColor(dashboard.readiness)}`}>
+              {dashboard.readiness}%
+            </div>
+          </div>
+
+          <div className="border rounded-xl p-5">
+            <div className="text-sm text-slate-500">Registros</div>
+            <div className="text-5xl font-black text-slate-800 mt-2">
+              {dashboard.totalRecords}
+            </div>
+          </div>
+
+          <div className="border rounded-xl p-5">
+            <div className="text-sm text-slate-500">Métodos pendientes</div>
+            <div className="text-5xl font-black text-amber-600 mt-2">
+              {dashboard.alerts.pendingValidations}
+            </div>
+          </div>
+
+          <div className="border rounded-xl p-5">
+            <div className="text-sm text-slate-500">Instrumentos riesgo</div>
+            <div className="text-5xl font-black text-red-600 mt-2">
+              {dashboard.alerts.instrumentsPending}
+            </div>
+          </div>
+
+          <div className="border rounded-xl p-5">
+            <div className="text-sm text-slate-500">Aptitud pendiente</div>
+            <div className="text-5xl font-black text-amber-600 mt-2">
+              {dashboard.alerts.proficiencyPending}
+            </div>
+          </div>
+
+          <div className="border rounded-xl p-5">
+            <div className="text-sm text-slate-500">Revisión pendiente</div>
+            <div className="text-5xl font-black text-amber-600 mt-2">
+              {dashboard.alerts.pendingReviews}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-3 border rounded-2xl p-4 bg-slate-50">
+          <h3 className="text-xl font-black text-slate-800 mb-4">
+            ISO/IEC 17025
+          </h3>
+
+          <div className="space-y-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.model}
+                onClick={() => setActiveModel(tab.model)}
+                className={`w-full text-left rounded-xl border p-4 ${
+                  activeModel === tab.model
+                    ? "bg-green-600 text-white border-green-600"
+                    : "bg-white text-slate-700"
+                }`}
+              >
+                <div className="font-black">{tab.title}</div>
+                <div className={`text-xs mt-1 leading-relaxed ${
+                  activeModel === tab.model ? "text-green-50" : "text-slate-500"
+                }`}>
+                  {tab.description}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="col-span-9 space-y-6">
+          <div className="border rounded-2xl p-6">
+            <h3 className="text-2xl font-black text-slate-800">
+              Crear registro — {activeTab.title}
+            </h3>
+
+            <p className="text-slate-500 mt-2">
+              {activeTab.description}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              {activeTab.fields.map((field) => (
+                <div key={field}>
+                  <label className="block text-sm font-bold text-slate-600 mb-2">
+                    {label(field)}
+                  </label>
+
+                  <textarea
+                    value={form[field] || ""}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        [field]: event.target.value,
+                      }))
+                    }
+                    className="w-full border rounded-xl px-4 py-3 min-h-[48px]"
+                    placeholder={label(field)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={createRecord}
+              className="mt-6 bg-green-600 hover:bg-green-700 text-white px-6 py-4 rounded-xl shadow font-black"
+            >
+              Crear registro
+            </button>
+          </div>
+
+          <div className="border rounded-2xl p-6">
+            <h3 className="text-2xl font-black text-slate-800 mb-5">
+              Registros — {activeTab.title}
+            </h3>
+
+            {records.length === 0 && (
+              <div className="bg-slate-50 border rounded-xl p-8 text-slate-500">
+                No hay registros todavía en este submódulo.
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {records.map((record) => (
+                <div key={record.id} className="border rounded-xl p-5">
+                  <div className="flex justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-black text-green-600">
+                        {record.code}
+                      </div>
+
+                      <h4 className="text-xl font-black text-slate-800 mt-1">
+                        {record.labName ||
+                          record.clauseTitle ||
+                          record.methodName ||
+                          record.instrumentName ||
+                          record.analyte ||
+                          record.sampleCode ||
+                          record.parameterName ||
+                          "Registro ISO 17025"}
+                      </h4>
+
+                      <p className="text-sm text-slate-500 mt-2">
+                        {record.status ||
+                          record.scopeStatus ||
+                          record.validationStatus ||
+                          record.reviewStatus ||
+                          ""}
+                      </p>
+                    </div>
+
+                    <span className="text-xs h-fit px-3 py-2 rounded-full bg-green-100 text-green-700 font-black">
+                      {record.status || record.scopeStatus || "Activo"}
+                    </span>
+                  </div>
+
+                  <details className="mt-4">
+                    <summary className="cursor-pointer font-bold text-slate-700">
+                      Ver datos completos
+                    </summary>
+
+                    <pre className="bg-slate-950 text-green-100 rounded-xl p-4 mt-3 text-xs overflow-auto">
+                      {JSON.stringify(record, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {dashboard && (
+            <div className="border rounded-2xl p-6 bg-slate-50">
+              <h3 className="text-2xl font-black text-slate-800 mb-5">
+                Recomendaciones ISO/IEC 17025
+              </h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                {dashboard.recommendations.map((item: string) => (
+                  <div key={item} className="bg-white border rounded-xl p-4 text-slate-600">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

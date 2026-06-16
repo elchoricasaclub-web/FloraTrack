@@ -1,0 +1,25 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import "./globals.css";
+
+import GlobalFormValidator from "../components/ui/GlobalFormValidator";
+import ButtonActionRuntime from "../components/ui/ButtonActionRuntime";
+import SystemDock from "../components/ui/SystemDock";
+
+export const metadata: Metadata = {
+  title: "FloraTrack",
+  description: "Enterprise Compliance Platform"
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="es">
+      <body>
+        {children}
+        <GlobalFormValidator />
+        <ButtonActionRuntime />
+        <SystemDock />
+      </body>
+    </html>
+  );
+}

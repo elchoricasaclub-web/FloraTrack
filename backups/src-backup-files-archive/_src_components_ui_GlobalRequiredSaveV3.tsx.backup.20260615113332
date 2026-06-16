@@ -1,0 +1,256 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+
+type ToastState = {
+  show: boolean;
+  fields: string[];
+};
+
+const blockedValues = [
+  "",
+  "usuario actual",
+  "responsable gacp",
+  "guardado global seguro",
+  "guardar avance actual",
+  "evidencia pendiente",
+  "sin evidencia",
+  "n/a",
+  "na"
+];
+
+function clean(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function isInvalid(value: string) {
+  const normalized = clean(value).toLowerCase();
+  return blockedValues.includes(normalized) || clean(value).length < 3;
+}
+
+function getPageModule() {
+  if (typeof document === "undefined") return "FloraTrack";
+
+  return (
+    document.querySelector("header h1")?.textContent?.trim() ||
+    document.querySelector("main h1")?.textContent?.trim() ||
+    document.querySelector("main h2")?.textContent?.trim() ||
+    document.querySelector("section h1")?.textContent?.trim() ||
+    document.querySelector("section h2")?.textContent?.trim() ||
+    "FloraTrack"
+  );
+}
+
+export default function GlobalRequiredSaveV3() {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<ToastState>({
+    show: false,
+    fields: []
+  });
+
+  const [form, setForm] = useState({
+    itemTitle: "",
+    owner: "",
+    evidence: "",
+    note: ""
+  });
+
+  function showValidation(fields: string[]) {
+    setToast({
+      show: true,
+      fields
+    });
+
+    window.setTimeout(() => {
+      setToast({
+        show: false,
+        fields: []
+      });
+    }, 8000);
+  }
+
+  async function submitSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const missing: string[] = [];
+
+    if (isInvalid(form.itemTitle)) missing.push("Título real del avance");
+    if (isInvalid(form.owner)) missing.push("Responsable real");
+    if (isInvalid(form.evidence)) missing.push("Evidencia real");
+    if (isInvalid(form.note)) missing.push("Nota técnica real");
+
+    if (missing.length > 0) {
+      showValidation(missing);
+      return;
+    }
+
+    setSaving(true);
+
+    const response = await fetch("/api/progress-records", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        moduleName: getPageModule(),
+        itemTitle: clean(form.itemTitle),
+        actionType: "validated-progress-save",
+        owner: clean(form.owner),
+        status: "Guardado",
+        evidence: clean(form.evidence),
+        note: clean(form.note)
+      })
+    });
+
+    const data = await response.json();
+    setSaving(false);
+
+    if (!response.ok || !data.ok) {
+      showValidation(data.fields || ["Información obligatoria"]);
+      return;
+    }
+
+    setOpen(false);
+    window.location.href = "/progress-records";
+  }
+
+  return (
+    <div data-global-required-save-v3="true">
+      <div className="fixed bottom-6 right-6 z-[99990] w-[330px] rounded-3xl border bg-white p-5 shadow-2xl">
+        <div className="text-xs font-black uppercase tracking-widest text-green-600">
+          Guardado seguro validado
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="mt-3 w-full rounded-2xl bg-green-600 px-5 py-4 text-sm font-black text-white hover:bg-green-700"
+        >
+          Guardar avance actual
+        </button>
+
+        <a
+          href="/progress-records"
+          className="mt-3 block rounded-2xl border px-4 py-3 text-center text-xs font-black text-slate-700"
+        >
+          Ver registros
+        </a>
+      </div>
+
+      {toast.show && (
+        <div className="fixed right-6 top-24 z-[100000] w-[440px] rounded-3xl border border-red-200 bg-white p-6 shadow-2xl">
+          <div className="text-xs font-black uppercase tracking-widest text-red-600">
+            Validación obligatoria
+          </div>
+
+          <h3 className="mt-2 text-2xl font-black text-slate-900">
+            Falta información requerida
+          </h3>
+
+          <p className="mt-2 text-sm font-semibold text-slate-600">
+            No se puede guardar el avance con campos vacíos o genéricos.
+          </p>
+
+          <ul className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">
+            {toast.fields.map((field) => (
+              <li key={field}>• {field}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {open && (
+        <div className="fixed inset-0 z-[99998] flex justify-end bg-slate-950/50">
+          <aside className="h-full w-full max-w-2xl overflow-y-auto bg-white p-8 shadow-2xl">
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <div className="text-xs font-black uppercase tracking-widest text-green-600">
+                  Guardado validado
+                </div>
+
+                <h2 className="mt-2 text-4xl font-black text-slate-900">
+                  Guardar avance actual
+                </h2>
+
+                <p className="mt-3 text-slate-500">
+                  Para guardar un avance debes completar información real.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-2xl border px-4 py-3 font-black text-slate-700"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <form onSubmit={submitSave} className="mt-8 space-y-5">
+              <div>
+                <label className="text-sm font-black text-slate-500">
+                  Título del avance
+                </label>
+
+                <input
+                  value={form.itemTitle}
+                  onChange={(event) => setForm({ ...form, itemTitle: event.target.value })}
+                  placeholder="Ejemplo: Revisión documental del módulo Cultivos"
+                  className="mt-2 w-full rounded-2xl border px-5 py-4 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-black text-slate-500">
+                  Responsable real
+                </label>
+
+                <input
+                  value={form.owner}
+                  onChange={(event) => setForm({ ...form, owner: event.target.value })}
+                  placeholder="Ejemplo: Edgar Rubén Gutierrez Rozo"
+                  className="mt-2 w-full rounded-2xl border px-5 py-4 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-black text-slate-500">
+                  Evidencia real
+                </label>
+
+                <input
+                  value={form.evidence}
+                  onChange={(event) => setForm({ ...form, evidence: event.target.value })}
+                  placeholder="Ejemplo: Captura, acta, registro, lote, código o documento"
+                  className="mt-2 w-full rounded-2xl border px-5 py-4 font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-black text-slate-500">
+                  Nota técnica
+                </label>
+
+                <textarea
+                  value={form.note}
+                  onChange={(event) => setForm({ ...form, note: event.target.value })}
+                  placeholder="Describe el avance realizado y su soporte."
+                  className="mt-2 min-h-[150px] w-full rounded-2xl border px-5 py-4 font-semibold"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-2xl bg-green-600 px-7 py-4 font-black text-white disabled:opacity-60"
+              >
+                {saving ? "Guardando..." : "Guardar avance validado"}
+              </button>
+            </form>
+          </aside>
+        </div>
+      )}
+    </div>
+  );
+}

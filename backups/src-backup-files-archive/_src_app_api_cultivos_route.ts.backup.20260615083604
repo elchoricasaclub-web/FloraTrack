@@ -1,0 +1,142 @@
+import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const dataDir = path.join(process.cwd(), "data");
+const dataFile = path.join(dataDir, "cultivos.json");
+
+const seedCultivos = [
+  {
+    id: "CULT-001",
+    createdAt: new Date().toISOString(),
+    nombre: "Cultivo Activo GACP",
+    codigo: "CULT-001",
+    area: "Producción agrícola",
+    genetica: "Genética principal",
+    responsable: "Responsable GACP",
+    estado: "Activo",
+    riesgo: "Alto",
+    avance: 82,
+    evidencia: "Registro cultivo / predio / genética",
+    nota: "Control maestro del cultivo activo con predio, genética, área, fecha de siembra, responsable, estado fenológico y trazabilidad GACP.",
+  },
+  {
+    id: "CULT-002",
+    createdAt: new Date().toISOString(),
+    nombre: "Estado Fenológico",
+    codigo: "CULT-002",
+    area: "Seguimiento técnico",
+    genetica: "Línea en evaluación",
+    responsable: "Director cultivo",
+    estado: "En proceso",
+    riesgo: "Medio",
+    avance: 68,
+    evidencia: "Registro fenológico / fotografías / observaciones",
+    nota: "Seguimiento del ciclo fenológico: vegetativo, prefloración, floración, maduración y cosecha proyectada.",
+  },
+  {
+    id: "CULT-003",
+    createdAt: new Date().toISOString(),
+    nombre: "Monitoreo Fitosanitario",
+    codigo: "CULT-003",
+    area: "Sanidad vegetal",
+    genetica: "Lote monitoreado",
+    responsable: "Responsable GACP",
+    estado: "Alerta",
+    riesgo: "Crítico",
+    avance: 46,
+    evidencia: "Monitoreo plagas / umbral / acción",
+    nota: "Control de plagas, enfermedades, síntomas, umbrales, medidas preventivas, tratamientos permitidos y evaluación de eficacia.",
+  },
+];
+
+function ensureStore() {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  if (!fs.existsSync(dataFile)) {
+    fs.writeFileSync(dataFile, JSON.stringify(seedCultivos, null, 2), "utf8");
+  }
+}
+
+function readCultivos() {
+  ensureStore();
+
+  try {
+    return JSON.parse(fs.readFileSync(dataFile, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function writeCultivos(records: any[]) {
+  ensureStore();
+  fs.writeFileSync(dataFile, JSON.stringify(records, null, 2), "utf8");
+}
+
+export async function GET() {
+  const records = readCultivos();
+
+  return NextResponse.json({
+    ok: true,
+    total: records.length,
+    records,
+  });
+}
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const records = readCultivos();
+
+  const nextNumber = String(records.length + 1).padStart(3, "0");
+
+  const record = {
+    id: `CULT-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    nombre: String(body.nombre || `Nuevo Cultivo ${nextNumber}`),
+    codigo: String(body.codigo || `CULT-${nextNumber}`),
+    area: String(body.area || "Producción agrícola"),
+    genetica: String(body.genetica || "Sin genética asignada"),
+    responsable: String(body.responsable || "Responsable GACP"),
+    estado: String(body.estado || "Borrador"),
+    riesgo: String(body.riesgo || "Medio"),
+    avance: Number(body.avance || 0),
+    evidencia: String(body.evidencia || "Evidencia pendiente"),
+    nota: String(body.nota || "Registro creado desde el módulo Cultivos."),
+  };
+
+  records.unshift(record);
+  writeCultivos(records);
+
+  return NextResponse.json({
+    ok: true,
+    record,
+    records,
+  });
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json();
+  const records = readCultivos();
+
+  const updated = records.map((item: any) => {
+    if (item.id !== body.id) return item;
+
+    return {
+      ...item,
+      ...body,
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  writeCultivos(updated);
+
+  return NextResponse.json({
+    ok: true,
+    records: updated,
+  });
+}

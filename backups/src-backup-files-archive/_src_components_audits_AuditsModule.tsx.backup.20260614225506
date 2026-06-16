@@ -1,0 +1,74 @@
+"use client";
+
+import DbCrudModule from "../ui/DbCrudModule";
+
+export default function AuditsModule() {
+  return (
+    <DbCrudModule
+      title="Auditorías"
+      description="Auditorías internas, externas, GACP/GMP y regulatorias con auditor, área, hallazgo, vencimiento, estado y trazabilidad."
+      apiPath="/api/quality/audits"
+      buttonLabel="Nueva Auditoría"
+      icon="🔍"
+      emptyForm={{
+        id: "",
+        code: "",
+        auditType: "Interna",
+        area: "GACP",
+        auditor: "",
+        finding: "",
+        status: "Programada",
+        dueDate: "",
+      }}
+      fields={[
+        { name: "code", label: "Código auditoría", required: true },
+        {
+          name: "auditType",
+          label: "Tipo",
+          type: "select",
+          options: [
+            { label: "Interna", value: "Interna" },
+            { label: "Externa", value: "Externa" },
+            { label: "Proveedor", value: "Proveedor" },
+            { label: "Regulatoria", value: "Regulatoria" },
+            { label: "Cliente", value: "Cliente" },
+          ],
+        },
+        {
+          name: "area",
+          label: "Área",
+          type: "select",
+          options: [
+            { label: "GACP", value: "GACP" },
+            { label: "GMP", value: "GMP" },
+            { label: "Calidad", value: "Calidad" },
+            { label: "Laboratorio", value: "Laboratorio" },
+            { label: "Regulatorio", value: "Regulatorio" },
+            { label: "Inventario", value: "Inventario" },
+          ],
+        },
+        { name: "auditor", label: "Auditor" },
+        { name: "finding", label: "Hallazgo" },
+        { name: "dueDate", label: "Fecha", type: "date" },
+        {
+          name: "status",
+          label: "Estado",
+          type: "select",
+          options: [
+            { label: "Programada", value: "Programada" },
+            { label: "En ejecución", value: "En ejecución" },
+            { label: "Hallazgos abiertos", value: "Hallazgos abiertos" },
+            { label: "Cerrada", value: "Cerrada" },
+          ],
+        },
+      ]}
+      columns={[
+        { label: "Código", accessor: "code" },
+        { label: "Tipo", accessor: "auditType" },
+        { label: "Área", accessor: "area" },
+        { label: "Auditor", accessor: "auditor" },
+        { label: "Fecha", accessor: "dueDate" },
+      ]}
+    />
+  );
+}

@@ -1,0 +1,227 @@
+const modules = [
+  { name: "Dashboard", href: "/" },
+  { name: "Control Tower", href: "/" },
+  { name: "Cultivos", href: "/cultivos" },
+  { name: "CAPA", href: "/" },
+  { name: "Empresas", href: "/" },
+  { name: "Usuarios", href: "/" },
+  { name: "Predios", href: "/" },
+  { name: "GIS", href: "/" },
+  { name: "Genéticas", href: "/" },
+  { name: "Propagación", href: "/" },
+  { name: "Cosecha", href: "/" },
+  { name: "Micropropagación", href: "/" },
+  { name: "Live Rosin", href: "/" },
+  { name: "LIMS", href: "/" },
+  { name: "ISO 17025", href: "/" },
+  { name: "Documentos", href: "/" },
+  { name: "CSV", href: "/" },
+  { name: "Regulatorio", href: "/" }
+];
+
+const cards = [
+  {
+    title: "Score Global de Cumplimiento",
+    area: "Dashboard · Compliance",
+    metric: "83%",
+    status: "Estable",
+    insight: "Cumplimiento general activo con controles por módulos.",
+    progress: 83
+  },
+  {
+    title: "Readiness Ejecutivo",
+    area: "Dashboard · Dirección",
+    metric: "2 riesgos",
+    status: "Pendiente revisión",
+    insight: "Riesgos abiertos en CSV, licencias y evidencias.",
+    progress: 64
+  },
+  {
+    title: "Operación GACP",
+    area: "Producción agrícola",
+    metric: "4 módulos",
+    status: "En monitoreo",
+    insight: "Cultivos, propagación, genética y cosecha bajo control.",
+    progress: 74
+  },
+  {
+    title: "Calidad y Auditoría",
+    area: "QMS / GMP",
+    metric: "15 eventos",
+    status: "Activo",
+    insight: "Audit Trail, CAPA y registros funcionando.",
+    progress: 88
+  }
+];
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <aside className="fixed left-0 top-0 h-screen w-[300px] overflow-y-auto border-r bg-white p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600 text-xl font-black text-white">
+            F
+          </div>
+
+          <div>
+            <div className="text-2xl font-black">FloraTrack</div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-600">
+              Enterprise Platform
+            </div>
+          </div>
+        </div>
+
+        <input
+          placeholder="Buscar módulo..."
+          className="mt-8 w-full rounded-2xl border px-4 py-4 font-semibold"
+        />
+
+        <div className="mt-8 text-xs font-black uppercase tracking-widest text-slate-400">
+          Módulos principales
+        </div>
+
+        <nav className="mt-4 space-y-2 pb-20">
+          {modules.map((module) => (
+            <a
+              key={module.name}
+              href={module.href}
+              className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left font-black ${
+                module.name === "Dashboard"
+                  ? "bg-green-600 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <span>{module.name}</span>
+              {module.name === "Dashboard" && <span className="rounded-full bg-white/20 px-2 py-1 text-xs">Inicio</span>}
+              {module.name === "Cultivos" && <span className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-700">GACP</span>}
+              {module.name === "CAPA" && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-700">QMS</span>}
+            </a>
+          ))}
+        </nav>
+      </aside>
+
+      <section className="ml-[300px] min-h-screen pb-20">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-white px-8 py-6">
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-600">
+              FloraTrack
+            </div>
+
+            <h1 className="text-4xl font-black">Dashboard</h1>
+          </div>
+
+          <div className="flex gap-3">
+            <a
+              href="/audit-trail"
+              className="rounded-2xl border px-6 py-4 font-black text-slate-800"
+            >
+              Audit Trail
+            </a>
+
+            <a
+              href="/new-record"
+              className="rounded-2xl bg-green-600 px-6 py-4 font-black text-white"
+            >
+              Nuevo Registro
+            </a>
+          </div>
+        </header>
+
+        <div className="p-8">
+          <section className="rounded-[2rem] bg-slate-950 p-10 text-white shadow-2xl">
+            <div className="text-xs font-black uppercase tracking-widest text-green-400">
+              FloraTrack Executive
+            </div>
+
+            <h2 className="mt-4 text-7xl font-black leading-none">
+              Dashboard Ejecutivo
+            </h2>
+
+            <p className="mt-6 max-w-3xl text-lg text-slate-200">
+              Vista premium del desempeño general de FloraTrack: cumplimiento, operaciones,
+              auditoría, QMS, CSV, SaaS e inteligencia regulatoria.
+            </p>
+
+            <div className="mt-10 grid grid-cols-4 gap-5">
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">Score ejecutivo</div>
+                <div className="mt-3 text-5xl font-black">83%</div>
+              </div>
+
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">Ítems</div>
+                <div className="mt-3 text-5xl font-black">4</div>
+              </div>
+
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">OK / Premium</div>
+                <div className="mt-3 text-5xl font-black text-green-300">2</div>
+              </div>
+
+              <div className="rounded-3xl bg-white/10 p-6">
+                <div className="text-sm font-black">Riesgo alto</div>
+                <div className="mt-3 text-5xl font-black text-red-300">2</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8 grid grid-cols-2 gap-6">
+            {cards.map((item) => (
+              <article key={item.title} className="rounded-3xl border bg-white p-8 shadow-sm">
+                <div className="text-xs font-black uppercase tracking-widest text-green-600">
+                  {item.area}
+                </div>
+
+                <div className="mt-4 flex items-start justify-between gap-5">
+                  <div>
+                    <h3 className="text-4xl font-black">{item.title}</h3>
+                    <p className="mt-4 text-slate-500">{item.insight}</p>
+                  </div>
+
+                  <div className="rounded-3xl bg-slate-950 px-6 py-5 text-center text-white">
+                    <div className="text-xs font-black">Métrica</div>
+                    <div className="mt-2 text-3xl font-black">{item.metric}</div>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex justify-between text-sm font-black text-slate-500">
+                    <span>Avance</span>
+                    <span>{item.progress}%</span>
+                  </div>
+
+                  <div className="mt-2 h-3 rounded-full bg-slate-100">
+                    <div
+                      className="h-3 rounded-full bg-green-600"
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-slate-700">
+                    {item.status}
+                  </span>
+
+                  <a
+                    href="/cultivos"
+                    className="rounded-full bg-green-600 px-5 py-2 text-sm font-black text-white"
+                  >
+                    Ir a Cultivos
+                  </a>
+
+                  <a
+                    href="/audit-trail"
+                    className="rounded-full border px-5 py-2 text-sm font-black text-slate-700"
+                  >
+                    Ver auditoría
+                  </a>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
+      </section>
+    </main>
+  );
+}

@@ -1,0 +1,63 @@
+"use client";
+
+import OperationalModuleShell, { OperationalModuleItem } from "../ui/OperationalModuleShell";
+
+const items: OperationalModuleItem[] = [
+  {
+    id: "banco-genetico",
+    title: "Banco Genético Maestro",
+    moduleName: "Genéticas",
+    area: "Genética vegetal",
+    metric: "24 accesiones",
+    status: "Activo",
+    priority: "Crítica",
+    owner: "Director técnico / QA",
+    evidence: "Ficha genética / origen / trazabilidad",
+    description: "Control maestro de variedades, accesiones, líneas, parentales, origen, titularidad, código interno, trazabilidad y estado regulatorio.",
+    progress: 88,
+    actionLabel: "Abrir banco",
+    flow: ["Origen", "Identidad", "Evaluación", "Liberación"],
+  },
+  {
+    id: "registro-varietal",
+    title: "Registro Varietal / ICA",
+    moduleName: "Genéticas",
+    area: "Regulatorio",
+    metric: "RNCC / ICA",
+    status: "En revisión",
+    priority: "Crítica",
+    owner: "Regulatorio / Representante legal",
+    evidence: "Expediente varietal / documentos ICA",
+    description: "Seguimiento de registros varietales, documentación técnica, titularidad, autorizaciones, estado de trámite y soporte legal.",
+    progress: 62,
+    actionLabel: "Ver expediente",
+    flow: ["Documentos", "Ensayo", "Radicación", "Aprobación"],
+  },
+  {
+    id: "trazabilidad",
+    title: "Trazabilidad Genética Completa",
+    moduleName: "Genéticas",
+    area: "Trazabilidad",
+    metric: "GEN-TRACE",
+    status: "Activo",
+    priority: "Crítica",
+    owner: "QA / GACP",
+    evidence: "Genética → madre → clon → cultivo → cosecha",
+    description: "Reconstrucción completa de la genética desde banco genético hasta propagación, cultivo, cosecha, biomasa y producto final.",
+    progress: 91,
+    actionLabel: "Ver trazabilidad",
+    flow: ["Genética", "Madre", "Cultivo", "Producto"],
+  },
+];
+
+export default function GeneticasModule() {
+  return (
+    <OperationalModuleShell
+      eyebrow="FloraTrack GACP / Regulatorio"
+      title="Genéticas"
+      description="Gestión moderna del banco genético, registros varietales, quimiotipo, estabilidad genética, material parental y trazabilidad."
+      createLabel="+ Nueva Genética"
+      items={items}
+    />
+  );
+}

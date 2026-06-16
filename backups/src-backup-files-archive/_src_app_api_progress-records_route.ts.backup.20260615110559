@@ -1,0 +1,136 @@
+import { NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const dataDir = path.join(process.cwd(), "data");
+const dataFile = path.join(dataDir, "progress-records.json");
+
+const genericValues = [
+  "",
+  "usuario actual",
+  "guardado global seguro",
+  "guardar avance actual",
+  "avance guardado desde botón flotante global.",
+  "avance guardado desde boton flotante global.",
+  "responsable gacp",
+  "evidencia pendiente"
+];
+
+function clean(value: unknown) {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function isGeneric(value: unknown) {
+  return genericValues.includes(clean(value).toLowerCase());
+}
+
+function ensureStore() {
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+
+  if (!fs.existsSync(dataFile)) {
+    fs.writeFileSync(dataFile, "[]", "utf8");
+  }
+}
+
+function readRecords() {
+  ensureStore();
+
+  try {
+    return JSON.parse(fs.readFileSync(dataFile, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function writeRecords(records: any[]) {
+  ensureStore();
+  fs.writeFileSync(dataFile, JSON.stringify(records, null, 2), "utf8");
+}
+
+function validateProgress(input: Record<string, unknown>) {
+  const missing: string[] = [];
+
+  if (isGeneric(input.itemTitle)) missing.push("Título del avance");
+  if (isGeneric(input.owner)) missing.push("Responsable real");
+  if (isGeneric(input.evidence)) missing.push("Evidencia real");
+  if (isGeneric(input.note)) missing.push("Nota técnica");
+
+  return missing;
+}
+
+export async function GET() {
+  const records = readRecords();
+
+  return NextResponse.json({
+    ok: true,
+    total: records.length,
+    records: records.slice().reverse()
+  });
+}
+
+export async function POST(request: Request) {
+  const contentType = request.headers.get("content-type") || "";
+
+  let input: Record<string, unknown> = {};
+
+  if (contentType.includes("application/json")) {
+    try {
+      input = await request.json();
+    } catch {
+      input = {};
+    }
+  } else {
+    const formData = await request.formData();
+
+    for (const [key, value] of formData.entries()) {
+      input[key] = String(value);
+    }
+  }
+
+  const missing = validateProgress(input);
+
+  if (missing.length > 0) {
+    if (contentType.includes("application/json")) {
+      return NextResponse.json({
+        ok: false,
+        error: "VALIDATION_REQUIRED",
+        message: "Falta información requerida.",
+        fields: missing
+      }, { status: 400 });
+    }
+
+    const url = new URL("/progress-records", request.url);
+    url.searchParams.set("validation", "1");
+    url.searchParams.set("fields", missing.join(","));
+
+    return NextResponse.redirect(url, { status: 303 });
+  }
+
+  const records = readRecords();
+
+  const record = {
+    id: `PROG-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    moduleName: clean(input.moduleName || "FloraTrack"),
+    itemTitle: clean(input.itemTitle),
+    actionType: clean(input.actionType || "manual-required-save"),
+    owner: clean(input.owner),
+    status: clean(input.status || "Guardado"),
+    evidence: clean(input.evidence),
+    note: clean(input.note)
+  };
+
+  records.unshift(record);
+  writeRecords(records);
+
+  return NextResponse.json({
+    ok: true,
+    record,
+    records
+  });
+}

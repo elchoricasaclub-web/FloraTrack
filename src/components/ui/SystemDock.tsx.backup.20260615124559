@@ -1,0 +1,194 @@
+"use client";
+
+import { useState } from "react";
+
+export default function SystemDock() {
+  const [open, setOpen] = useState<"save" | "status" | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
+
+  function validateEmptySave() {
+    setMissing([
+      "Título del avance",
+      "Responsable real",
+      "Evidencia real",
+      "Nota técnica"
+    ]);
+
+    window.setTimeout(() => {
+      setMissing([]);
+    }, 7000);
+  }
+
+  return (
+    <div data-system-dock-root="true">
+      <button
+        type="button"
+        data-runtime-ignore="true"
+        onClick={() => setOpen("status")}
+        className="fixed bottom-6 left-6 z-[99980] rounded-3xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-2xl"
+      >
+        Estado App
+      </button>
+
+      <div className="fixed bottom-6 right-6 z-[99990] w-[330px] rounded-3xl border bg-white p-5 shadow-2xl">
+        <div className="text-xs font-black uppercase tracking-widest text-green-600">
+          Guardado seguro validado
+        </div>
+
+        <button
+          type="button"
+          data-runtime-ignore="true"
+          onClick={() => setOpen("save")}
+          className="mt-3 w-full rounded-2xl bg-green-600 px-5 py-4 text-sm font-black text-white"
+        >
+          Guardar avance actual
+        </button>
+
+        <a
+          data-runtime-ignore="true"
+          href="/progress-records"
+          className="mt-3 block rounded-2xl border px-4 py-3 text-center text-xs font-black text-slate-700"
+        >
+          Ver registros
+        </a>
+      </div>
+
+      {missing.length > 0 && (
+        <div className="fixed right-6 top-24 z-[100000] w-[440px] rounded-3xl border border-red-200 bg-white p-6 shadow-2xl">
+          <div className="text-xs font-black uppercase tracking-widest text-red-600">
+            Validación obligatoria
+          </div>
+
+          <h3 className="mt-2 text-2xl font-black text-slate-900">
+            Falta información requerida
+          </h3>
+
+          <p className="mt-2 text-sm font-semibold text-slate-600">
+            No se puede guardar con campos vacíos.
+          </p>
+
+          <ul className="mt-4 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700">
+            {missing.map((field) => (
+              <li key={field}>• {field}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {open === "save" && (
+        <div className="fixed inset-0 z-[99998] flex justify-end bg-slate-950/50">
+          <aside className="h-full w-full max-w-2xl overflow-y-auto bg-white p-8 shadow-2xl">
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <div className="text-xs font-black uppercase tracking-widest text-green-600">
+                  Guardado validado
+                </div>
+
+                <h2 className="mt-2 text-4xl font-black text-slate-900">
+                  Guardar avance actual
+                </h2>
+
+                <p className="mt-3 text-slate-500">
+                  Este panel no permite guardar avances vacíos.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-runtime-ignore="true"
+                onClick={() => setOpen(null)}
+                className="rounded-2xl border px-4 py-3 font-black text-slate-700"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-8 space-y-5">
+              <input
+                placeholder="Título del avance"
+                className="w-full rounded-2xl border px-5 py-4 font-semibold"
+              />
+
+              <input
+                placeholder="Responsable real"
+                className="w-full rounded-2xl border px-5 py-4 font-semibold"
+              />
+
+              <input
+                placeholder="Evidencia real"
+                className="w-full rounded-2xl border px-5 py-4 font-semibold"
+              />
+
+              <textarea
+                placeholder="Nota técnica"
+                className="min-h-[150px] w-full rounded-2xl border px-5 py-4 font-semibold"
+              />
+
+              <button
+                type="button"
+                data-runtime-ignore="true"
+                onClick={validateEmptySave}
+                className="rounded-2xl bg-green-600 px-7 py-4 font-black text-white"
+              >
+                Guardar avance validado
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {open === "status" && (
+        <div className="fixed inset-0 z-[99997] flex items-center justify-center bg-slate-950/50 p-6">
+          <section className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <div className="text-xs font-black uppercase tracking-widest text-green-600">
+                  FloraTrack · Estado del sistema
+                </div>
+
+                <h2 className="mt-2 text-5xl font-black text-slate-900">
+                  Estado de la App
+                </h2>
+
+                <p className="mt-3 max-w-4xl text-slate-500">
+                  App activa en modo desarrollo local. Panel separado para estado técnico.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                data-runtime-ignore="true"
+                onClick={() => setOpen(null)}
+                className="rounded-2xl border px-5 py-3 font-black text-slate-700"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div className="mt-8 grid grid-cols-4 gap-4">
+              <div className="rounded-3xl border bg-slate-50 p-6">
+                <div className="text-xs font-black uppercase text-slate-400">Servidor</div>
+                <div className="mt-2 text-3xl font-black text-green-600">Activo</div>
+              </div>
+
+              <div className="rounded-3xl border bg-slate-50 p-6">
+                <div className="text-xs font-black uppercase text-slate-400">Guardado</div>
+                <div className="mt-2 text-3xl font-black text-green-600">Validado</div>
+              </div>
+
+              <div className="rounded-3xl border bg-slate-50 p-6">
+                <div className="text-xs font-black uppercase text-slate-400">Registros</div>
+                <div className="mt-2 text-3xl font-black text-green-600">Protegidos</div>
+              </div>
+
+              <div className="rounded-3xl border bg-slate-50 p-6">
+                <div className="text-xs font-black uppercase text-slate-400">Versión</div>
+                <div className="mt-2 text-3xl font-black text-slate-900">MVP</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}

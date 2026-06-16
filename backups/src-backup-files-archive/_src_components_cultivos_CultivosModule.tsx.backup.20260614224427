@@ -1,0 +1,232 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import ModuleItemCard from "../ui/ModuleItemCard";
+
+const items = [
+  {
+    id: "cultivo-activo",
+    title: "Cultivo Activo GACP",
+    moduleName: "Cultivos",
+    area: "Producción agrícola",
+    metric: "CULT-001",
+    status: "Activo",
+    priority: "Alta",
+    owner: "Responsable GACP",
+    evidence: "Registro cultivo / predio / genética",
+    description:
+      "Control maestro del cultivo activo con predio, genética, área, fecha de siembra, responsable, estado fenológico y trazabilidad GACP.",
+    progress: 82,
+    actionLabel: "Abrir cultivo",
+    flow: ["Predio", "Genética", "Siembra", "Seguimiento"],
+  },
+  {
+    id: "fenologia",
+    title: "Estado Fenológico",
+    moduleName: "Cultivos",
+    area: "Seguimiento técnico",
+    metric: "Floración",
+    status: "En proceso",
+    priority: "Alta",
+    owner: "Director cultivo",
+    evidence: "Registro fenológico / fotografías / observaciones",
+    description:
+      "Seguimiento del ciclo fenológico: vegetativo, prefloración, floración, maduración, cosecha proyectada y alertas técnicas.",
+    progress: 68,
+    actionLabel: "Ver etapa",
+    flow: ["Vegetativo", "Prefloración", "Floración", "Cosecha"],
+  },
+  {
+    id: "riego",
+    title: "Riego y Fertirriego",
+    moduleName: "Cultivos",
+    area: "Nutrición",
+    metric: "pH 6.2",
+    status: "Monitoreo",
+    priority: "Media",
+    owner: "Supervisor riego",
+    evidence: "pH / EC / volumen / receta",
+    description:
+      "Ítem para controlar riego, fertirriego, pH, EC, volumen aplicado, receta nutricional, drenaje y desviaciones.",
+    progress: 74,
+    actionLabel: "Ver riego",
+    flow: ["Receta", "Aplicación", "Medición", "Corrección"],
+  },
+  {
+    id: "sanidad",
+    title: "Monitoreo Fitosanitario",
+    moduleName: "Cultivos",
+    area: "Sanidad vegetal",
+    metric: "1 alerta",
+    status: "Alerta",
+    priority: "Crítica",
+    owner: "Responsable GACP",
+    evidence: "Monitoreo plagas / umbral / acción",
+    description:
+      "Control de plagas, enfermedades, síntomas, umbrales, medidas preventivas, tratamientos permitidos y evaluación de eficacia.",
+    progress: 46,
+    actionLabel: "Revisar alerta",
+    flow: ["Monitoreo", "Hallazgo", "Acción", "Eficacia"],
+  },
+  {
+    id: "ambiente",
+    title: "Condiciones Ambientales",
+    moduleName: "Cultivos",
+    area: "Clima y ambiente",
+    metric: "24 °C",
+    status: "Estable",
+    priority: "Alta",
+    owner: "Supervisor cultivo",
+    evidence: "Temperatura / humedad / VPD / radiación",
+    description:
+      "Seguimiento de temperatura, humedad, VPD, radiación, ventilación, alertas climáticas y relación con sanidad y productividad.",
+    progress: 86,
+    actionLabel: "Ver ambiente",
+    flow: ["Medición", "Tendencia", "Alerta", "Acción"],
+  },
+  {
+    id: "cosecha",
+    title: "Cosecha Proyectada",
+    moduleName: "Cultivos",
+    area: "Planificación",
+    metric: "15 días",
+    status: "Pendiente revisión",
+    priority: "Alta",
+    owner: "Producción / QA",
+    evidence: "Proyección cosecha / madurez / criterios",
+    description:
+      "Planificación de cosecha según madurez, genética, lote, inspección técnica, criterios de calidad, trazabilidad y liberación a poscosecha.",
+    progress: 60,
+    actionLabel: "Planear cosecha",
+    flow: ["Madurez", "Inspección", "Corte", "Poscosecha"],
+  },
+];
+
+const variants = [
+  { id: "executive", label: "Ejecutivo Premium" },
+  { id: "timeline", label: "Timeline Proceso" },
+  { id: "audit", label: "Audit Ready" },
+  { id: "compact", label: "Compacto Operativo" },
+];
+
+const statuses = ["Todos", "Activo", "En proceso", "Monitoreo", "Alerta", "Estable", "Pendiente revisión"];
+
+export default function CultivosModule() {
+  const [variant, setVariant] = useState("executive");
+  const [status, setStatus] = useState("Todos");
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("grid");
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const statusOk = status === "Todos" || item.status === status;
+      const queryOk =
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        item.area.toLowerCase().includes(query.toLowerCase()) ||
+        item.description.toLowerCase().includes(query.toLowerCase());
+
+      return statusOk && queryOk;
+    });
+  }, [status, query]);
+
+  const activeItems = items.filter((item) => item.status === "Activo" || item.status === "Estable").length;
+  const criticalItems = items.filter((item) => item.priority === "Crítica").length;
+  const averageProgress = Math.round(items.reduce((sum, item) => sum + item.progress, 0) / items.length);
+
+  return (
+    <section className="space-y-8">
+      <div className="rounded-3xl bg-white p-8 shadow">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="text-sm font-black text-green-600">
+              FloraTrack GACP
+            </div>
+
+            <h2 className="mt-2 text-5xl font-black text-slate-900">
+              Cultivos
+            </h2>
+
+            <p className="mt-3 max-w-5xl text-slate-500 leading-relaxed">
+              Gestión moderna de cultivos GACP: predio, genética, ciclo fenológico,
+              riego, nutrición, sanidad vegetal, ambiente, cosecha proyectada y trazabilidad.
+            </p>
+          </div>
+
+          <button className="rounded-2xl bg-green-600 px-6 py-4 font-black text-white shadow hover:bg-green-700">
+            + Nuevo Cultivo
+          </button>
+        </div>
+
+        <div className="mt-8 grid grid-cols-4 gap-4">
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Ítems</div>
+            <div className="mt-2 text-4xl font-black text-slate-900">{items.length}</div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Activos / Estables</div>
+            <div className="mt-2 text-4xl font-black text-green-600">{activeItems}</div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Críticos</div>
+            <div className="mt-2 text-4xl font-black text-red-600">{criticalItems}</div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Avance</div>
+            <div className="mt-2 text-4xl font-black text-slate-900">{averageProgress}%</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl bg-white p-6 shadow">
+        <div className="grid grid-cols-12 gap-4">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por cultivo, sanidad, riego, ambiente o cosecha..."
+            className="col-span-5 rounded-2xl border px-5 py-4 font-semibold"
+          />
+
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="col-span-2 rounded-2xl border px-5 py-4 font-semibold"
+          >
+            {statuses.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+
+          <select
+            value={variant}
+            onChange={(event) => setVariant(event.target.value)}
+            className="col-span-3 rounded-2xl border px-5 py-4 font-semibold"
+          >
+            {variants.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={view}
+            onChange={(event) => setView(event.target.value)}
+            className="col-span-2 rounded-2xl border px-5 py-4 font-semibold"
+          >
+            <option value="grid">Grid</option>
+            <option value="list">Lista</option>
+          </select>
+        </div>
+      </div>
+
+      <div className={view === "grid" ? "grid grid-cols-2 gap-6" : "space-y-6"}>
+        {filteredItems.map((item) => (
+          <ModuleItemCard key={item.id} {...item} variant={variant} />
+        ))}
+      </div>
+    </section>
+  );
+}

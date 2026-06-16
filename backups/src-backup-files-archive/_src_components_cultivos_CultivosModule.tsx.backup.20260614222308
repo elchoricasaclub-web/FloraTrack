@@ -1,0 +1,108 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import DbCrudModule from "../ui/DbCrudModule";
+
+type Option = {
+  label: string;
+  value: string;
+};
+
+export default function CultivosModule() {
+  const [farms, setFarms] = useState<Option[]>([]);
+  const [genetics, setGenetics] = useState<Option[]>([]);
+
+  useEffect(() => {
+    async function loadOptions() {
+      const [farmsResponse, geneticsResponse] = await Promise.all([
+        fetch("/api/farms", { cache: "no-store" }),
+        fetch("/api/genetics", { cache: "no-store" }),
+      ]);
+
+      const farmsResult = await farmsResponse.json();
+      const geneticsResult = await geneticsResponse.json();
+
+      if (farmsResult.ok) {
+        setFarms(
+          farmsResult.data.map((item: any) => ({
+            label: item.name,
+            value: item.id,
+          }))
+        );
+      }
+
+      if (geneticsResult.ok) {
+        setGenetics(
+          geneticsResult.data.map((item: any) => ({
+            label: item.name,
+            value: item.id,
+          }))
+        );
+      }
+    }
+
+    loadOptions();
+  }, []);
+
+  return (
+    <DbCrudModule
+      title="Cultivos"
+      description="Cultivos conectados a base de datos real con predio, genética, etapa, estado y trazabilidad hacia cosecha."
+      apiPath="/api/db/crops"
+      buttonLabel="Nuevo Cultivo"
+      icon="🌿"
+      emptyForm={{
+        id: "",
+        code: "",
+        stage: "Planeación",
+        status: "Activo",
+        farmId: "",
+        geneticId: "",
+      }}
+      fields={[
+        { name: "code", label: "Código cultivo", required: true },
+        {
+          name: "stage",
+          label: "Etapa",
+          type: "select",
+          options: [
+            { label: "Planeación", value: "Planeación" },
+            { label: "Propagación", value: "Propagación" },
+            { label: "Vegetativo", value: "Vegetativo" },
+            { label: "Floración", value: "Floración" },
+            { label: "Cosecha", value: "Cosecha" },
+          ],
+        },
+        {
+          name: "status",
+          label: "Estado",
+          type: "select",
+          options: [
+            { label: "Activo", value: "Activo" },
+            { label: "Pendiente", value: "Pendiente" },
+            { label: "Aprobado", value: "Aprobado" },
+            { label: "Bloqueado", value: "Bloqueado" },
+          ],
+        },
+        {
+          name: "farmId",
+          label: "Predio",
+          type: "select",
+          options: farms,
+        },
+        {
+          name: "geneticId",
+          label: "Genética",
+          type: "select",
+          options: genetics,
+        },
+      ]}
+      columns={[
+        { label: "Código", accessor: "code" },
+        { label: "Etapa", accessor: "stage" },
+        { label: "Predio", accessor: "farm.name" },
+        { label: "Genética", accessor: "genetic.name" },
+      ]}
+    />
+  );
+}

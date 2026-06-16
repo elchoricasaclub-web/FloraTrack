@@ -1,0 +1,7 @@
+"use client";
+
+import CommandCenterPage from "../components/floratrack/CommandCenterPage";
+
+export default function HomePage() {
+  return <CommandCenterPage />;
+}

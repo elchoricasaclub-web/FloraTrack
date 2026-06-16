@@ -1,0 +1,425 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+const items = [
+  {
+    id: "madres",
+    title: "Banco de Plantas Madre",
+    area: "Genética",
+    metric: "12 madres",
+    status: "Activo",
+    priority: "Alta",
+    owner: "Jefe propagación",
+    evidence: "Registro madre / genética / sanidad",
+    description:
+      "Control de plantas madre, estado sanitario, genética, ubicación, historial de cortes, vigor, trazabilidad y autorización para propagación.",
+    progress: 88,
+    flow: ["Selección", "Sanidad", "Corte", "Trazabilidad"],
+  },
+  {
+    id: "clones",
+    title: "Esquejes y Clones",
+    area: "Producción vegetal",
+    metric: "240 clones",
+    status: "En proceso",
+    priority: "Alta",
+    owner: "Operario propagación",
+    evidence: "Registro de corte / bandeja / hormona",
+    description:
+      "Seguimiento de esquejes, bandejas, fecha de corte, operador, hormona, humedad, enraizamiento, mortalidad y lote destino.",
+    progress: 64,
+    flow: ["Corte", "Bandeja", "Enraizado", "Trasplante"],
+  },
+  {
+    id: "raices",
+    title: "Enraizamiento",
+    area: "Control proceso",
+    metric: "82%",
+    status: "Pendiente revisión",
+    priority: "Media",
+    owner: "Supervisor cultivo",
+    evidence: "Conteo raíces / humedad / temperatura",
+    description:
+      "Control del porcentaje de enraizamiento, días en propagador, condiciones ambientales, pérdidas y aprobación para traslado.",
+    progress: 72,
+    flow: ["Ingreso", "Ambiente", "Raíz", "Liberación"],
+  },
+  {
+    id: "sanidad",
+    title: "Control Fitosanitario",
+    area: "Sanidad vegetal",
+    metric: "0 plagas",
+    status: "Activo",
+    priority: "Crítica",
+    owner: "Responsable GACP",
+    evidence: "Inspección fitosanitaria / monitoreo",
+    description:
+      "Registro de inspección sanitaria, plagas, hongos, síntomas, tratamientos permitidos, cuarentena vegetal y liberación.",
+    progress: 94,
+    flow: ["Inspección", "Hallazgo", "Tratamiento", "Liberación"],
+  },
+  {
+    id: "trazabilidad",
+    title: "Trazabilidad Genética",
+    area: "Trazabilidad",
+    metric: "GEN-001",
+    status: "Activo",
+    priority: "Crítica",
+    owner: "QA / GACP",
+    evidence: "Código genético / lote / madre",
+    description:
+      "Trazabilidad completa desde genética, planta madre, esqueje, lote de propagación, predio, cultivo y cosecha futura.",
+    progress: 90,
+    flow: ["Genética", "Madre", "Clon", "Cultivo"],
+  },
+  {
+    id: "ambiente",
+    title: "Ambiente de Propagación",
+    area: "Monitoreo ambiental",
+    metric: "24 °C",
+    status: "En proceso",
+    priority: "Alta",
+    owner: "Supervisor cultivo",
+    evidence: "Temperatura / humedad / limpieza",
+    description:
+      "Control de temperatura, humedad, limpieza, desinfección, ventilación, riego, luminosidad y desviaciones del área de propagación.",
+    progress: 70,
+    flow: ["Medición", "Alerta", "Corrección", "Registro"],
+  },
+];
+
+const variants = [
+  { id: "executive", label: "Ejecutivo Premium" },
+  { id: "timeline", label: "Timeline Proceso" },
+  { id: "audit", label: "Audit Ready" },
+  { id: "compact", label: "Compacto Operativo" },
+];
+
+const statuses = ["Todos", "Activo", "En proceso", "Pendiente revisión"];
+
+function statusClass(status: string) {
+  const value = status.toLowerCase();
+
+  if (value.includes("activo")) return "bg-green-100 text-green-700 border-green-200";
+  if (value.includes("pendiente") || value.includes("proceso")) return "bg-amber-100 text-amber-700 border-amber-200";
+  return "bg-slate-100 text-slate-700 border-slate-200";
+}
+
+function priorityClass(priority: string) {
+  const value = priority.toLowerCase();
+  if (value.includes("crítica")) return "bg-red-600 text-white";
+  if (value.includes("alta")) return "bg-amber-500 text-white";
+  return "bg-slate-700 text-white";
+}
+
+function progressClass(progress: number) {
+  if (progress >= 80) return "bg-green-600";
+  if (progress >= 55) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+      <div
+        className={`h-full rounded-full ${progressClass(value)}`}
+        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
+      />
+    </div>
+  );
+}
+
+function ItemCard({ item, variant }: { item: any; variant: string }) {
+  if (variant === "audit") {
+    return (
+      <div className="rounded-3xl border bg-slate-950 p-7 text-white shadow-sm">
+        <div className="flex items-start justify-between gap-5">
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-300">
+              Audit Ready · {item.area}
+            </div>
+            <h3 className="mt-2 text-3xl font-black">{item.title}</h3>
+            <p className="mt-3 text-slate-300">{item.description}</p>
+          </div>
+
+          <div className="rounded-2xl bg-white px-5 py-4 text-right text-slate-950">
+            <div className="text-xs text-slate-500">Métrica</div>
+            <div className="text-lg font-black">{item.metric}</div>
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-4">
+          <div className="rounded-2xl bg-slate-900 p-4">
+            <div className="text-xs text-slate-400">Responsable</div>
+            <div className="mt-1 font-black">{item.owner}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-900 p-4">
+            <div className="text-xs text-slate-400">Evidencia</div>
+            <div className="mt-1 font-black">{item.evidence}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-900 p-4">
+            <div className="text-xs text-slate-400">Estado</div>
+            <div className="mt-1 font-black">{item.status}</div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <ProgressBar value={item.progress} />
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "timeline") {
+    return (
+      <div className="rounded-3xl border bg-white p-7 shadow-sm">
+        <div className="flex items-start justify-between gap-5">
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-600">
+              Flujo de proceso · Propagación
+            </div>
+            <h3 className="mt-2 text-3xl font-black text-slate-900">{item.title}</h3>
+            <p className="mt-3 text-slate-500">{item.description}</p>
+          </div>
+
+          <span className={`h-fit rounded-full border px-4 py-2 text-xs font-black ${statusClass(item.status)}`}>
+            {item.status}
+          </span>
+        </div>
+
+        <div className="mt-7 grid grid-cols-4 gap-3">
+          {item.flow.map((step: string, index: number) => (
+            <div key={step} className="rounded-2xl border bg-slate-50 p-4">
+              <div className="text-xs font-black text-slate-400">Paso {index + 1}</div>
+              <div className="mt-1 font-black text-slate-800">{step}</div>
+              <div className={`mt-4 h-2 rounded-full ${index < 2 ? "bg-green-500" : "bg-slate-200"}`} />
+            </div>
+          ))}
+        </div>
+
+        <button className="mt-6 rounded-xl bg-green-600 px-5 py-3 font-black text-white">
+          Abrir proceso
+        </button>
+      </div>
+    );
+  }
+
+  if (variant === "compact") {
+    return (
+      <div className="rounded-3xl border bg-white p-5 shadow-sm transition hover:shadow-md">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-black text-green-600">{item.area}</div>
+            <h3 className="mt-1 text-xl font-black text-slate-900">{item.title}</h3>
+          </div>
+
+          <div className="rounded-xl bg-green-50 px-4 py-3 font-black text-green-700">
+            {item.metric}
+          </div>
+        </div>
+
+        <p className="mt-4 text-sm text-slate-500">{item.description}</p>
+
+        <div className="mt-4">
+          <ProgressBar value={item.progress} />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className={`rounded-full border px-3 py-1 text-xs font-black ${statusClass(item.status)}`}>
+            {item.status}
+          </span>
+          <span className="text-xs font-bold text-slate-400">{item.owner}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border bg-white p-8 shadow-sm">
+      <div className="absolute right-0 top-0 h-40 w-40 rounded-bl-full bg-green-100" />
+
+      <div className="relative z-10">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest text-green-600">
+              Propagación · {item.area}
+            </div>
+
+            <h3 className="mt-2 text-4xl font-black text-slate-900">{item.title}</h3>
+
+            <p className="mt-4 max-w-4xl text-slate-500">{item.description}</p>
+          </div>
+
+          <div className="rounded-2xl bg-slate-950 px-6 py-5 text-right text-white">
+            <div className="text-xs text-slate-300">Métrica</div>
+            <div className="text-2xl font-black">{item.metric}</div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="mb-2 flex justify-between text-sm font-bold text-slate-500">
+            <span>Avance</span>
+            <span>{item.progress}%</span>
+          </div>
+          <ProgressBar value={item.progress} />
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-4">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs font-bold text-slate-400">Responsable</div>
+            <div className="mt-1 font-black text-slate-800">{item.owner}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs font-bold text-slate-400">Evidencia</div>
+            <div className="mt-1 font-black text-slate-800">{item.evidence}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="text-xs font-bold text-slate-400">Estado</div>
+            <div className="mt-1 font-black text-slate-800">{item.status}</div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          <span className={`rounded-full px-4 py-2 text-xs font-black ${priorityClass(item.priority)}`}>
+            {item.priority}
+          </span>
+          <span className={`rounded-full border px-4 py-2 text-xs font-black ${statusClass(item.status)}`}>
+            {item.status}
+          </span>
+          <button className="rounded-full bg-green-600 px-4 py-2 text-xs font-black text-white">
+            Abrir registro
+          </button>
+          <button className="rounded-full border px-4 py-2 text-xs font-black text-slate-700">
+            Ver evidencia
+          </button>
+          <button className="rounded-full border px-4 py-2 text-xs font-black text-slate-700">
+            Audit trail
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function PropagacionModule() {
+  const [variant, setVariant] = useState("executive");
+  const [status, setStatus] = useState("Todos");
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("grid");
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const statusOk = status === "Todos" || item.status === status;
+      const queryOk =
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        item.area.toLowerCase().includes(query.toLowerCase()) ||
+        item.description.toLowerCase().includes(query.toLowerCase());
+
+      return statusOk && queryOk;
+    });
+  }, [status, query]);
+
+  const activeItems = items.filter((item) => item.status === "Activo").length;
+  const criticalItems = items.filter((item) => item.priority === "Crítica").length;
+  const averageProgress = Math.round(
+    items.reduce((sum, item) => sum + item.progress, 0) / items.length
+  );
+
+  return (
+    <section className="space-y-8">
+      <div className="rounded-3xl bg-white p-8 shadow">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="text-sm font-black text-green-600">
+              FloraTrack GACP
+            </div>
+
+            <h2 className="mt-2 text-5xl font-black text-slate-900">
+              Propagación
+            </h2>
+
+            <p className="mt-3 max-w-5xl text-slate-500 leading-relaxed">
+              Gestión moderna de plantas madre, esquejes, clones, enraizamiento,
+              control fitosanitario, ambiente y trazabilidad genética bajo enfoque GACP.
+            </p>
+          </div>
+
+          <button className="rounded-2xl bg-green-600 px-6 py-4 font-black text-white shadow hover:bg-green-700">
+            + Nueva Propagación
+          </button>
+        </div>
+
+        <div className="mt-8 grid grid-cols-4 gap-4">
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Ítems</div>
+            <div className="mt-2 text-4xl font-black text-slate-900">{items.length}</div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Activos</div>
+            <div className="mt-2 text-4xl font-black text-green-600">{activeItems}</div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Críticos</div>
+            <div className="mt-2 text-4xl font-black text-red-600">{criticalItems}</div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-5">
+            <div className="text-sm font-bold text-slate-500">Avance</div>
+            <div className="mt-2 text-4xl font-black text-slate-900">{averageProgress}%</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl bg-white p-6 shadow">
+        <div className="grid grid-cols-12 gap-4">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por madre, clon, sanidad, ambiente o trazabilidad..."
+            className="col-span-5 rounded-2xl border px-5 py-4 font-semibold"
+          />
+
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="col-span-2 rounded-2xl border px-5 py-4 font-semibold"
+          >
+            {statuses.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </select>
+
+          <select
+            value={variant}
+            onChange={(event) => setVariant(event.target.value)}
+            className="col-span-3 rounded-2xl border px-5 py-4 font-semibold"
+          >
+            {variants.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={view}
+            onChange={(event) => setView(event.target.value)}
+            className="col-span-2 rounded-2xl border px-5 py-4 font-semibold"
+          >
+            <option value="grid">Grid</option>
+            <option value="list">Lista</option>
+          </select>
+        </div>
+      </div>
+
+      <div className={view === "grid" ? "grid grid-cols-2 gap-6" : "space-y-6"}>
+        {filteredItems.map((item) => (
+          <ItemCard key={item.id} item={item} variant={variant} />
+        ))}
+      </div>
+    </section>
+  );
+}

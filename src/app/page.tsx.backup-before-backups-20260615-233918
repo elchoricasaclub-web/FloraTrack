@@ -1,0 +1,329 @@
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  heroAccess,
+  primaryModules,
+  quickAccess,
+  secondaryModules,
+  type ModuleItem,
+} from "../lib/floratrackModules";
+
+export default function DashboardPage() {
+  const [search, setSearch] = useState("");
+
+  const filteredModules = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    if (!term) return primaryModules;
+
+    return primaryModules.filter((module) =>
+      [
+        module.title,
+        module.subtitle,
+        module.description,
+        module.tag,
+        module.status,
+        module.group,
+        module.risk,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(term)
+    );
+  }, [search]);
+
+  const metrics = useMemo(() => {
+    return {
+      score: 99,
+      active: primaryModules.length,
+      highRisk: primaryModules.filter((module) => ["Alto", "Crítico"].includes(module.risk)).length,
+      qaModules: primaryModules.filter((module) => module.group !== "GACP" && module.group !== "Base").length,
+    };
+  }, []);
+
+  return (
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <div className="grid min-h-screen lg:grid-cols-[320px_1fr]">
+        <aside className="border-r border-slate-300 bg-white p-7">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-2xl font-black text-white">
+              F
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">FloraTrack</h1>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-700">
+                Enterprise Platform
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar módulo..."
+              className="w-full rounded-2xl border border-slate-950 bg-slate-50 px-5 py-4 text-sm font-bold outline-none transition focus:ring-4 focus:ring-emerald-200"
+            />
+          </div>
+
+          <nav className="mt-8 space-y-8">
+            <section>
+              <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Módulos principales
+              </p>
+
+              <div className="space-y-2">
+                <SidebarLink href="/" label="Dashboard" badge="Inicio" active />
+
+                {primaryModules.map((module) => (
+                  <SidebarLink
+                    key={module.href}
+                    href={module.href}
+                    label={module.title}
+                    badge={module.tag}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <p className="mb-4 text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Próximos módulos
+              </p>
+
+              <div className="space-y-1">
+                {secondaryModules.map((module) => (
+                  <div
+                    key={module}
+                    className="rounded-xl px-4 py-3 text-sm font-bold text-slate-500"
+                  >
+                    {module}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </nav>
+        </aside>
+
+        <section className="max-h-screen overflow-auto">
+          <header className="sticky top-0 z-30 border-b border-slate-300 bg-white/95 px-8 py-7 backdrop-blur">
+            <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-700">
+                  FloraTrack
+                </p>
+                <h2 className="text-4xl font-black tracking-tight">Dashboard</h2>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {quickAccess.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={`rounded-2xl border px-7 py-4 text-sm font-black shadow-lg transition ${item.className}`}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </header>
+
+          <div className="space-y-8 p-8">
+            <section className="rounded-[2rem] bg-slate-950 p-8 text-white shadow-2xl">
+              <div className="grid gap-8 xl:grid-cols-[1fr_280px] xl:items-center">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-400">
+                    FloraTrack Executive
+                  </p>
+
+                  <h3 className="mt-5 text-5xl font-black tracking-tight md:text-7xl">
+                    Dashboard Ejecutivo
+                  </h3>
+
+                  <p className="mt-5 max-w-5xl text-lg leading-8 text-slate-200">
+                    Vista principal para cumplimiento GACP/GMP, trazabilidad agrícola,
+                    auditoría, registros electrónicos, firmas electrónicas, validación 21 CFR Part 11,
+                    calidad QA, CAPA, documentos controlados, entrenamiento, equipos, proveedores,
+                    saneamiento, MIP, residuos, recall, retención, usuarios, empresas, GIS,
+                    reportes, alertas, CSV, regulatorio e inventario.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {heroAccess.map((item) => (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      className={`block rounded-3xl px-7 py-5 text-center text-lg font-black shadow-xl transition ${item.className}`}
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <section className="mt-10 grid gap-5 md:grid-cols-4">
+                <ExecutiveMetric title="Score ejecutivo" value={`${metrics.score}%`} />
+                <ExecutiveMetric title="Módulos activos" value={metrics.active} />
+                <ExecutiveMetric title="Validación" value="ON" tone="emerald" />
+                <ExecutiveMetric title="Riesgo alto" value={metrics.highRisk} tone="red" />
+              </section>
+            </section>
+
+            <section className="grid gap-5 md:grid-cols-4">
+              <MiniMetric title="Módulos QA/GMP/Audit" value={metrics.qaModules} />
+              <MiniMetric title="Part 11" value="Activo" />
+              <MiniMetric title="Firmas electrónicas" value="Activo" />
+              <MiniMetric title="Regulatorio" value="Activo" />
+            </section>
+
+            <section>
+              <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-[0.25em] text-slate-500">
+                    Módulos activos
+                  </p>
+                  <h3 className="mt-1 text-3xl font-black">Plataforma FloraTrack</h3>
+                </div>
+
+                <p className="text-sm font-bold text-slate-500">
+                  {filteredModules.length} módulos visibles
+                </p>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-2">
+                {filteredModules.map((module) => (
+                  <ModuleCard key={module.href} module={module} />
+                ))}
+              </div>
+            </section>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function SidebarLink({
+  href,
+  label,
+  badge,
+  active = false,
+}: {
+  href: string;
+  label: string;
+  badge: string;
+  active?: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-black transition ${
+        active
+          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
+          : "text-slate-950 hover:bg-slate-100"
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`rounded-full px-3 py-1 text-xs font-black ${
+          active ? "bg-white/20 text-white" : "bg-emerald-100 text-emerald-800"
+        }`}
+      >
+        {badge}
+      </span>
+    </a>
+  );
+}
+
+function ExecutiveMetric({
+  title,
+  value,
+  tone = "white",
+}: {
+  title: string;
+  value: string | number;
+  tone?: "white" | "emerald" | "red";
+}) {
+  const valueClass =
+    tone === "emerald"
+      ? "text-emerald-300"
+      : tone === "red"
+      ? "text-red-300"
+      : "text-white";
+
+  return (
+    <div className="rounded-3xl bg-white/10 p-6">
+      <p className="text-sm font-black text-slate-200">{title}</p>
+      <p className={`mt-3 text-5xl font-black ${valueClass}`}>{value}</p>
+    </div>
+  );
+}
+
+function MiniMetric({ title, value }: { title: string; value: string | number }) {
+  return (
+    <div className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+      <p className="text-sm font-black text-slate-500">{title}</p>
+      <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
+    </div>
+  );
+}
+
+function ModuleCard({ module }: { module: ModuleItem }) {
+  return (
+    <article className="rounded-[2rem] border border-slate-950 bg-white p-8 shadow-sm">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.25em] text-emerald-700">
+            {module.subtitle}
+          </p>
+
+          <h4 className="mt-4 text-4xl font-black tracking-tight">{module.title}</h4>
+        </div>
+
+        <div className="rounded-2xl bg-slate-950 px-5 py-4 text-center text-white">
+          <p className="text-xs font-black uppercase text-slate-300">Estado</p>
+          <p className="text-xl font-black">{module.status}</p>
+        </div>
+      </div>
+
+      <p className="mt-6 text-base font-bold leading-7 text-slate-700">
+        {module.description}
+      </p>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Badge>{module.tag}</Badge>
+        <Badge>Validación obligatoria</Badge>
+        <Badge>Auditoría</Badge>
+        <Badge>Riesgo {module.risk}</Badge>
+      </div>
+
+      <div className="mt-7 flex flex-wrap gap-3">
+        <a
+          href={module.href}
+          className="rounded-2xl bg-emerald-600 px-6 py-4 text-sm font-black text-white transition hover:bg-emerald-500"
+        >
+          Abrir módulo
+        </a>
+
+        <a
+          href="/auditorias"
+          className="rounded-2xl border border-slate-950 px-6 py-4 text-sm font-black transition hover:bg-slate-950 hover:text-white"
+        >
+          Ver auditoría
+        </a>
+      </div>
+    </article>
+  );
+}
+
+function Badge({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-black text-emerald-800">
+      {children}
+    </span>
+  );
+}
