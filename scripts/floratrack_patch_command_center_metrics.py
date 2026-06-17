@@ -1,4 +1,22 @@
-"use client";
+from pathlib import Path
+from datetime import datetime
+import shutil
+
+ROOT = Path.cwd()
+STAMP = datetime.now().strftime("%Y%m%d-%H%M%S")
+BACKUP_DIR = Path("/home/usergrowlifecol/floratrack_backups") / f"patch-command-center-metrics-{STAMP}"
+
+COMMAND = ROOT / "src/app/command-center/page.tsx"
+AVANCE = ROOT / "AVANCE_FLORATRACK.md"
+HANDOFF = ROOT / "CHATGPT_HANDOFF_FLORATRACK.md"
+
+BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+for path in [COMMAND, AVANCE, HANDOFF]:
+    if path.exists():
+        shutil.copy2(path, BACKUP_DIR / path.name)
+
+command_page = r'''"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -538,3 +556,48 @@ function FlowStep({ number, title, href, detail }: { number: string; title: stri
     </a>
   );
 }
+'''
+
+COMMAND.write_text(command_page)
+
+avance_append = '''
+
+## Command Center con metricas reales GxP
+
+Se consolido `/command-center` como panel ejecutivo conectado a datos locales:
+- Lee registros desde cambios, riesgos, workflows, audit trail y reportes programados.
+- Calcula registros totales, altos/criticos, pendientes, cerrados, evidencia, firmas y reportes activos.
+- Presenta salud operativa por modulo y cadena GxP integrada.
+- Permite refrescar metricas y exportar snapshot JSON ejecutivo.
+'''
+
+handoff_append = '''
+
+## Command Center con metricas reales GxP
+
+Se actualizo `src/app/command-center/page.tsx` como dashboard cliente conectado a:
+- `floratrack_control_cambios_gxp_v1`
+- `floratrack_gestion_riesgos_gxp_v1`
+- `floratrack_workflows_qa_v1`
+- `floratrack_audit_trail_gxp_v1`
+- `floratrack_reportes_programados_gxp_v1`
+
+Incluye score operativo, prioridades QA, estado por modulo, flujo integrado y exportacion JSON.
+'''
+
+if AVANCE.exists():
+    avance = AVANCE.read_text()
+    if "Command Center con metricas reales GxP" not in avance:
+        AVANCE.write_text(avance + avance_append)
+
+if HANDOFF.exists():
+    handoff = HANDOFF.read_text()
+    if "Command Center con metricas reales GxP" not in handoff:
+        HANDOFF.write_text(handoff + handoff_append)
+
+print("PATCH COMPLETADO OK")
+print(f"Backup creado en: {BACKUP_DIR}")
+print("Archivos modificados:")
+print("- src/app/command-center/page.tsx")
+print("- AVANCE_FLORATRACK.md")
+print("- CHATGPT_HANDOFF_FLORATRACK.md")

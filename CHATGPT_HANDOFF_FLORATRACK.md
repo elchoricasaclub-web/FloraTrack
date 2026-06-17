@@ -200,3 +200,15 @@ En esta fase se conecto `/audit-trail` con `/reportes-programados` mediante borr
 - Clave localStorage: `floratrack_bridge_audit_trail_to_reportes_v1`.
 - Botones agregados en `/audit-trail`: `Enviar a Reporte Programado` y `Reporte`.
 - `/reportes-programados` ahora es un modulo CRUD local completo con validacion GxP, cron, zona horaria y exportaciones JSON/CSV.
+
+
+## Command Center con metricas reales GxP
+
+Se actualizo `src/app/command-center/page.tsx` como dashboard cliente conectado a:
+- `floratrack_control_cambios_gxp_v1`
+- `floratrack_gestion_riesgos_gxp_v1`
+- `floratrack_workflows_qa_v1`
+- `floratrack_audit_trail_gxp_v1`
+- `floratrack_reportes_programados_gxp_v1`
+
+Incluye score operativo, prioridades QA, estado por modulo, flujo integrado y exportacion JSON.

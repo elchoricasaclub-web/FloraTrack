@@ -91,3 +91,12 @@ Se agrego conexion local entre `/audit-trail` y `/reportes-programados`:
 - El borrador se guarda en `localStorage` con clave `floratrack_bridge_audit_trail_to_reportes_v1`.
 - `/reportes-programados` fue ampliado a modulo CRUD local con metricas, filtros, validaciones GxP, expresion cron, zona horaria y exportacion JSON/CSV.
 - El reporte captura modulo fuente, registro, frecuencia, cron, responsables, aprobador QA, destinatarios, prioridad, firma, evidencias y referencias GxP.
+
+
+## Command Center con metricas reales GxP
+
+Se consolido `/command-center` como panel ejecutivo conectado a datos locales:
+- Lee registros desde cambios, riesgos, workflows, audit trail y reportes programados.
+- Calcula registros totales, altos/criticos, pendientes, cerrados, evidencia, firmas y reportes activos.
+- Presenta salud operativa por modulo y cadena GxP integrada.
+- Permite refrescar metricas y exportar snapshot JSON ejecutivo.
