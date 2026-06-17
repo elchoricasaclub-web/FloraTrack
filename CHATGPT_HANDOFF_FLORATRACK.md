@@ -190,3 +190,13 @@ En esta fase se conecto `/workflows` con `/audit-trail` mediante borrador local:
 - Clave localStorage: `floratrack_bridge_workflows_to_audit_trail_v1`.
 - Botones agregados en `/workflows`: `Enviar a Audit Trail` y `Audit Trail`.
 - `/audit-trail` ahora es un modulo CRUD local completo con validacion GxP y exportacion JSON.
+
+
+## Puente Audit Trail -> Reportes Programados
+
+En esta fase se conecto `/audit-trail` con `/reportes-programados` mediante borrador local:
+- Emisor: `src/app/audit-trail/page.tsx`.
+- Receptor: `src/app/reportes-programados/page.tsx`.
+- Clave localStorage: `floratrack_bridge_audit_trail_to_reportes_v1`.
+- Botones agregados en `/audit-trail`: `Enviar a Reporte Programado` y `Reporte`.
+- `/reportes-programados` ahora es un modulo CRUD local completo con validacion GxP, cron, zona horaria y exportaciones JSON/CSV.

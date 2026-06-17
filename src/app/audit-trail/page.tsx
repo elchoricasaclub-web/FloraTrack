@@ -49,6 +49,7 @@ type NoticeState = {
 
 const STORAGE_KEY = "floratrack_audit_trail_gxp_v1";
 const AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";
+const REPORT_DRAFT_KEY = "floratrack_bridge_audit_trail_to_reportes_v1";
 
 const emptyForm: AuditRecord = {
   id: "",
@@ -270,6 +271,99 @@ function validateRecord(record: AuditRecord): string[] {
   return errors;
 }
 
+
+function bridgeAuditClean(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function reportTypeFromAudit(record: AuditRecord): string {
+  const text = [
+    record.tipoEvento,
+    record.moduloOrigen,
+    record.criticidadGxp,
+    record.decisionQA,
+    record.resultado,
+  ].join(" ").toLowerCase();
+
+  if (text.includes("firma")) return "Firmas electronicas";
+  if (text.includes("regulatorio")) return "Regulatorio";
+  if (text.includes("capa") || text.includes("desviacion") || text.includes("desviación")) return "CAPA / desviaciones";
+  if (text.includes("riesgo")) return "Riesgos QRM";
+  if (text.includes("workflow")) return "Workflows QA";
+  if (text.includes("crit") || text.includes("alta") || text.includes("escal")) return "Eventos criticos GxP";
+  if (text.includes("aprob")) return "Aprobaciones QA";
+
+  return "Audit Trail GxP";
+}
+
+function reportFrequencyFromAudit(record: AuditRecord): string {
+  const criticality = bridgeAuditClean(record.criticidadGxp).toLowerCase();
+  const eventType = bridgeAuditClean(record.tipoEvento).toLowerCase();
+
+  if (criticality.includes("crit") || criticality.includes("alta")) return "Diario";
+  if (eventType.includes("firma") || eventType.includes("cierre")) return "Semanal";
+  return "Mensual";
+}
+
+function reportCronFromFrequency(frequency: string): string {
+  if (frequency === "Diario") return "0 7 * * *";
+  if (frequency === "Semanal") return "0 7 * * 1";
+  if (frequency === "Mensual") return "0 7 1 * *";
+  if (frequency === "Trimestral") return "0 7 1 */3 *";
+  return "0 7 * * *";
+}
+
+function reportPriorityFromAudit(record: AuditRecord): string {
+  const text = [record.criticidadGxp, record.tipoEvento, record.decisionQA].join(" ").toLowerCase();
+
+  if (text.includes("crit") || text.includes("alta") || text.includes("rechaz") || text.includes("escal")) return "Alta";
+  if (text.includes("media") || text.includes("firma")) return "Media";
+  return "Baja";
+}
+
+function buildReportDraftFromAudit(record: AuditRecord): Record<string, string> {
+  const today = new Date().toISOString().slice(0, 10);
+  const sourceCode = bridgeAuditClean(record.codigoEvento) || `AUD-${today}`;
+  const reportType = reportTypeFromAudit(record);
+  const frequency = reportFrequencyFromAudit(record);
+  const priority = reportPriorityFromAudit(record);
+
+  return {
+    codigoReporte: `REP-${sourceCode}`,
+    nombreReporte: `${reportType} desde ${sourceCode}`,
+    tipoReporte: reportType,
+    moduloFuente: bridgeAuditClean(record.moduloOrigen) || "Audit Trail",
+    registroFuente: sourceCode,
+    frecuencia: frequency,
+    expresionCron: reportCronFromFrequency(frequency),
+    zonaHoraria: "America/Bogota",
+    responsable: bridgeAuditClean(record.usuario) || "Responsable QA pendiente",
+    aprobadorQA: bridgeAuditClean(record.usuario) || "QA pendiente",
+    destinatarios: "qa@growlifecol.local; cumplimiento@growlifecol.local",
+    fechaInicio: today,
+    horaEjecucion: "07:00",
+    formatoSalida: "JSON + CSV",
+    estadoReporte: "Borrador",
+    prioridadGxP: priority,
+    requiereFirma: priority === "Alta" || bridgeAuditClean(record.tipoEvento).toLowerCase().includes("firma") ? "Sí" : "No",
+    referenciaAuditTrail: sourceCode,
+    referenciaWorkflow: bridgeAuditClean(record.referenciaWorkflow),
+    referenciaRiesgo: bridgeAuditClean(record.referenciaRiesgo),
+    referenciaCambio: bridgeAuditClean(record.referenciaCambio),
+    filtroDatos: `modulo=${bridgeAuditClean(record.moduloOrigen) || "Audit Trail"}; evento=${bridgeAuditClean(record.tipoEvento) || "GxP"}; criticidad=${bridgeAuditClean(record.criticidadGxp) || "No definida"}`,
+    contenidoReporte: [
+      `Evento audit trail: ${sourceCode}`,
+      `Tipo: ${bridgeAuditClean(record.tipoEvento) || "No definido"}`,
+      `Accion: ${bridgeAuditClean(record.accionEjecutada) || "No definida"}`,
+      `Decision QA: ${bridgeAuditClean(record.decisionQA) || "Pendiente QA"}`,
+      `Resultado: ${bridgeAuditClean(record.resultado) || "Pendiente"}`,
+      `Hash: ${bridgeAuditClean(record.hashReferencia) || "Pendiente"}`,
+    ].join("\\n"),
+    evidencia: bridgeAuditClean(record.evidencia),
+    observaciones: `Borrador importado desde Audit Trail. Revisar alcance, frecuencia, cron, destinatarios, aprobador QA y evidencia antes de activar.`,
+  };
+}
+
 function toneFor(value: string): "success" | "warning" | "danger" | "neutral" {
   const normalized = value.toLowerCase();
 
@@ -446,6 +540,30 @@ export default function AuditTrailPage() {
     showNotice("Evento audit trail eliminado del almacenamiento local.", [], "success");
   }
 
+
+  function handleCreateReportDraft(record: AuditRecord, redirect = false) {
+    if (typeof window === "undefined") return;
+
+    if (!bridgeAuditClean(record.codigoEvento) && !bridgeAuditClean(record.accionEjecutada)) {
+      showNotice("No se creo reporte programado. Registra al menos codigo o accion auditada.");
+      return;
+    }
+
+    const draft = buildReportDraftFromAudit(record);
+    window.localStorage.setItem(REPORT_DRAFT_KEY, JSON.stringify(draft));
+
+    if (redirect) {
+      window.location.href = "/reportes-programados";
+      return;
+    }
+
+    showNotice(
+      "Borrador de reporte programado creado.",
+      [`Reporte sugerido: ${draft.codigoReporte}`, `Frecuencia: ${draft.frecuencia}`, "Abre /reportes-programados para revisar y guardar."],
+      "success"
+    );
+  }
+
   function exportJson() {
     if (records.length === 0) {
       showNotice("No hay eventos audit trail para exportar.");
@@ -522,6 +640,9 @@ export default function AuditTrailPage() {
               <button type="button" onClick={resetForm} className="rounded-2xl border border-slate-600 px-6 py-3 text-sm font-bold text-slate-200 transition hover:bg-slate-800">
                 Limpiar formulario
               </button>
+              <button type="button" onClick={() => handleCreateReportDraft(form, true)} className="rounded-2xl border border-cyan-300/50 px-6 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-950/60">
+                Enviar a Reporte Programado
+              </button>
             </div>
           </form>
 
@@ -592,6 +713,9 @@ export default function AuditTrailPage() {
                       <div className="flex gap-2">
                         <button type="button" onClick={() => handleEdit(record)} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">
                           Editar
+                        </button>
+                        <button type="button" onClick={() => handleCreateReportDraft(record, true)} className="rounded-xl border border-cyan-300/50 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-500/10">
+                          Reporte
                         </button>
 
                         <button type="button" onClick={() => handleDelete(record.id)} className="rounded-xl border border-red-400/40 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/10">

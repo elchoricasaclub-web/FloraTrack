@@ -82,3 +82,12 @@ Se agrego conexion local entre `/workflows` y `/audit-trail`:
 - El borrador se guarda en `localStorage` con clave `floratrack_bridge_workflows_to_audit_trail_v1`.
 - `/audit-trail` fue ampliado a modulo CRUD local con metricas, filtros, validaciones GxP, exportacion JSON e importacion automatica del borrador.
 - El evento audit trail captura workflow, usuario, modulo, accion, estados, decision QA, evidencia, hash, criticidad y resultado.
+
+
+## Puente Audit Trail -> Reportes Programados
+
+Se agrego conexion local entre `/audit-trail` y `/reportes-programados`:
+- `/audit-trail` genera un borrador de reporte programado desde un evento audit trail.
+- El borrador se guarda en `localStorage` con clave `floratrack_bridge_audit_trail_to_reportes_v1`.
+- `/reportes-programados` fue ampliado a modulo CRUD local con metricas, filtros, validaciones GxP, expresion cron, zona horaria y exportacion JSON/CSV.
+- El reporte captura modulo fuente, registro, frecuencia, cron, responsables, aprobador QA, destinatarios, prioridad, firma, evidencias y referencias GxP.

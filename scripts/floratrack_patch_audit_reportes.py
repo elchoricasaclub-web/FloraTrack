@@ -1,4 +1,228 @@
-"use client";
+from pathlib import Path
+from datetime import datetime
+import shutil
+
+ROOT = Path.cwd()
+STAMP = datetime.now().strftime("%Y%m%d-%H%M%S")
+BACKUP_DIR = Path("/home/usergrowlifecol/floratrack_backups") / f"patch-audit-reportes-{STAMP}"
+
+AUDIT = ROOT / "src/app/audit-trail/page.tsx"
+REPORTES = ROOT / "src/app/reportes-programados/page.tsx"
+AVANCE = ROOT / "AVANCE_FLORATRACK.md"
+HANDOFF = ROOT / "CHATGPT_HANDOFF_FLORATRACK.md"
+
+def backup(path: Path) -> None:
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        shutil.copy2(path, BACKUP_DIR / path.name)
+
+def insert_after_button_label(source: str, label: str, insertion: str) -> str:
+    index = source.find(label)
+    if index == -1:
+        print(f"AVISO: no encontre boton con texto: {label}")
+        return source
+
+    end = source.find("</button>", index)
+    if end == -1:
+        print(f"AVISO: no encontre cierre de boton para: {label}")
+        return source
+
+    end += len("</button>")
+    return source[:end] + "\n" + insertion + source[end:]
+
+for path in [AUDIT, REPORTES, AVANCE, HANDOFF]:
+    backup(path)
+
+audit = AUDIT.read_text()
+
+# ---------------------------------------------------------------------
+# 1) /audit-trail: constante puente hacia reportes programados
+# ---------------------------------------------------------------------
+
+if "floratrack_bridge_audit_trail_to_reportes_v1" not in audit:
+    if 'const AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";' in audit:
+        audit = audit.replace(
+            'const AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";\n',
+            'const AUDIT_DRAFT_KEY = "floratrack_bridge_workflows_to_audit_trail_v1";\nconst REPORT_DRAFT_KEY = "floratrack_bridge_audit_trail_to_reportes_v1";\n',
+            1,
+        )
+    else:
+        audit = audit.replace(
+            'const STORAGE_KEY = "floratrack_audit_trail_gxp_v1";\n',
+            'const STORAGE_KEY = "floratrack_audit_trail_gxp_v1";\nconst REPORT_DRAFT_KEY = "floratrack_bridge_audit_trail_to_reportes_v1";\n',
+            1,
+        )
+
+# ---------------------------------------------------------------------
+# 2) /audit-trail: helpers para construir borrador de reporte
+# ---------------------------------------------------------------------
+
+audit_helpers = r'''
+function bridgeAuditClean(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function reportTypeFromAudit(record: AuditRecord): string {
+  const text = [
+    record.tipoEvento,
+    record.moduloOrigen,
+    record.criticidadGxp,
+    record.decisionQA,
+    record.resultado,
+  ].join(" ").toLowerCase();
+
+  if (text.includes("firma")) return "Firmas electronicas";
+  if (text.includes("regulatorio")) return "Regulatorio";
+  if (text.includes("capa") || text.includes("desviacion") || text.includes("desviación")) return "CAPA / desviaciones";
+  if (text.includes("riesgo")) return "Riesgos QRM";
+  if (text.includes("workflow")) return "Workflows QA";
+  if (text.includes("crit") || text.includes("alta") || text.includes("escal")) return "Eventos criticos GxP";
+  if (text.includes("aprob")) return "Aprobaciones QA";
+
+  return "Audit Trail GxP";
+}
+
+function reportFrequencyFromAudit(record: AuditRecord): string {
+  const criticality = bridgeAuditClean(record.criticidadGxp).toLowerCase();
+  const eventType = bridgeAuditClean(record.tipoEvento).toLowerCase();
+
+  if (criticality.includes("crit") || criticality.includes("alta")) return "Diario";
+  if (eventType.includes("firma") || eventType.includes("cierre")) return "Semanal";
+  return "Mensual";
+}
+
+function reportCronFromFrequency(frequency: string): string {
+  if (frequency === "Diario") return "0 7 * * *";
+  if (frequency === "Semanal") return "0 7 * * 1";
+  if (frequency === "Mensual") return "0 7 1 * *";
+  if (frequency === "Trimestral") return "0 7 1 */3 *";
+  return "0 7 * * *";
+}
+
+function reportPriorityFromAudit(record: AuditRecord): string {
+  const text = [record.criticidadGxp, record.tipoEvento, record.decisionQA].join(" ").toLowerCase();
+
+  if (text.includes("crit") || text.includes("alta") || text.includes("rechaz") || text.includes("escal")) return "Alta";
+  if (text.includes("media") || text.includes("firma")) return "Media";
+  return "Baja";
+}
+
+function buildReportDraftFromAudit(record: AuditRecord): Record<string, string> {
+  const today = new Date().toISOString().slice(0, 10);
+  const sourceCode = bridgeAuditClean(record.codigoEvento) || `AUD-${today}`;
+  const reportType = reportTypeFromAudit(record);
+  const frequency = reportFrequencyFromAudit(record);
+  const priority = reportPriorityFromAudit(record);
+
+  return {
+    codigoReporte: `REP-${sourceCode}`,
+    nombreReporte: `${reportType} desde ${sourceCode}`,
+    tipoReporte: reportType,
+    moduloFuente: bridgeAuditClean(record.moduloOrigen) || "Audit Trail",
+    registroFuente: sourceCode,
+    frecuencia: frequency,
+    expresionCron: reportCronFromFrequency(frequency),
+    zonaHoraria: "America/Bogota",
+    responsable: bridgeAuditClean(record.usuario) || "Responsable QA pendiente",
+    aprobadorQA: bridgeAuditClean(record.usuario) || "QA pendiente",
+    destinatarios: "qa@growlifecol.local; cumplimiento@growlifecol.local",
+    fechaInicio: today,
+    horaEjecucion: "07:00",
+    formatoSalida: "JSON + CSV",
+    estadoReporte: "Borrador",
+    prioridadGxP: priority,
+    requiereFirma: priority === "Alta" || bridgeAuditClean(record.tipoEvento).toLowerCase().includes("firma") ? "Sí" : "No",
+    referenciaAuditTrail: sourceCode,
+    referenciaWorkflow: bridgeAuditClean(record.referenciaWorkflow),
+    referenciaRiesgo: bridgeAuditClean(record.referenciaRiesgo),
+    referenciaCambio: bridgeAuditClean(record.referenciaCambio),
+    filtroDatos: `modulo=${bridgeAuditClean(record.moduloOrigen) || "Audit Trail"}; evento=${bridgeAuditClean(record.tipoEvento) || "GxP"}; criticidad=${bridgeAuditClean(record.criticidadGxp) || "No definida"}`,
+    contenidoReporte: [
+      `Evento audit trail: ${sourceCode}`,
+      `Tipo: ${bridgeAuditClean(record.tipoEvento) || "No definido"}`,
+      `Accion: ${bridgeAuditClean(record.accionEjecutada) || "No definida"}`,
+      `Decision QA: ${bridgeAuditClean(record.decisionQA) || "Pendiente QA"}`,
+      `Resultado: ${bridgeAuditClean(record.resultado) || "Pendiente"}`,
+      `Hash: ${bridgeAuditClean(record.hashReferencia) || "Pendiente"}`,
+    ].join("\\n"),
+    evidencia: bridgeAuditClean(record.evidencia),
+    observaciones: `Borrador importado desde Audit Trail. Revisar alcance, frecuencia, cron, destinatarios, aprobador QA y evidencia antes de activar.`,
+  };
+}
+'''
+
+if "function buildReportDraftFromAudit" not in audit:
+    if "function toneFor" in audit:
+        audit = audit.replace("function toneFor", audit_helpers + "\nfunction toneFor", 1)
+    else:
+        audit = audit.replace("export default function AuditTrailPage()", audit_helpers + "\nexport default function AuditTrailPage()", 1)
+
+# ---------------------------------------------------------------------
+# 3) /audit-trail: handler de envio hacia reportes programados
+# ---------------------------------------------------------------------
+
+audit_handler = r'''
+  function handleCreateReportDraft(record: AuditRecord, redirect = false) {
+    if (typeof window === "undefined") return;
+
+    if (!bridgeAuditClean(record.codigoEvento) && !bridgeAuditClean(record.accionEjecutada)) {
+      showNotice("No se creo reporte programado. Registra al menos codigo o accion auditada.");
+      return;
+    }
+
+    const draft = buildReportDraftFromAudit(record);
+    window.localStorage.setItem(REPORT_DRAFT_KEY, JSON.stringify(draft));
+
+    if (redirect) {
+      window.location.href = "/reportes-programados";
+      return;
+    }
+
+    showNotice(
+      "Borrador de reporte programado creado.",
+      [`Reporte sugerido: ${draft.codigoReporte}`, `Frecuencia: ${draft.frecuencia}`, "Abre /reportes-programados para revisar y guardar."],
+      "success"
+    );
+  }
+'''
+
+if "function handleCreateReportDraft" not in audit:
+    if "  function exportJson()" in audit:
+        audit = audit.replace("  function exportJson()", audit_handler + "\n  function exportJson()", 1)
+    else:
+        audit = audit.replace("  function handleEdit" , audit_handler + "\n  function handleEdit", 1)
+
+# ---------------------------------------------------------------------
+# 4) /audit-trail: botones en formulario y tarjetas
+# ---------------------------------------------------------------------
+
+form_button = '''              <button type="button" onClick={() => handleCreateReportDraft(form, true)} className="rounded-2xl border border-cyan-300/50 px-6 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-950/60">
+                Enviar a Reporte Programado
+              </button>'''
+
+if "Enviar a Reporte Programado" not in audit:
+    audit = insert_after_button_label(audit, "Limpiar formulario", form_button)
+
+card_button = '''\n                        <button type="button" onClick={() => handleCreateReportDraft(record, true)} className="rounded-xl border border-cyan-300/50 px-3 py-2 text-xs font-bold text-cyan-100 hover:bg-cyan-500/10">
+                          Reporte
+                        </button>'''
+
+if "handleCreateReportDraft(record, true)" not in audit:
+    exact_edit = '''                        <button type="button" onClick={() => handleEdit(record)} className="rounded-xl border border-slate-600 px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800">
+                          Editar
+                        </button>'''
+    if exact_edit in audit:
+        audit = audit.replace(exact_edit, exact_edit + card_button, 1)
+    else:
+        print("AVISO: no pude insertar boton Reporte en tarjeta; el boton de formulario si quedara disponible.")
+
+AUDIT.write_text(audit)
+
+# ---------------------------------------------------------------------
+# 5) /reportes-programados: modulo completo
+# ---------------------------------------------------------------------
+
+reportes_page = r'''"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -853,3 +1077,51 @@ function StatusPill({ value }: { value: string }) {
     </span>
   );
 }
+'''
+
+REPORTES.write_text(reportes_page)
+
+# ---------------------------------------------------------------------
+# 6) documentacion
+# ---------------------------------------------------------------------
+
+avance_append = '''
+
+## Puente Audit Trail -> Reportes Programados
+
+Se agrego conexion local entre `/audit-trail` y `/reportes-programados`:
+- `/audit-trail` genera un borrador de reporte programado desde un evento audit trail.
+- El borrador se guarda en `localStorage` con clave `floratrack_bridge_audit_trail_to_reportes_v1`.
+- `/reportes-programados` fue ampliado a modulo CRUD local con metricas, filtros, validaciones GxP, expresion cron, zona horaria y exportacion JSON/CSV.
+- El reporte captura modulo fuente, registro, frecuencia, cron, responsables, aprobador QA, destinatarios, prioridad, firma, evidencias y referencias GxP.
+'''
+
+handoff_append = '''
+
+## Puente Audit Trail -> Reportes Programados
+
+En esta fase se conecto `/audit-trail` con `/reportes-programados` mediante borrador local:
+- Emisor: `src/app/audit-trail/page.tsx`.
+- Receptor: `src/app/reportes-programados/page.tsx`.
+- Clave localStorage: `floratrack_bridge_audit_trail_to_reportes_v1`.
+- Botones agregados en `/audit-trail`: `Enviar a Reporte Programado` y `Reporte`.
+- `/reportes-programados` ahora es un modulo CRUD local completo con validacion GxP, cron, zona horaria y exportaciones JSON/CSV.
+'''
+
+if AVANCE.exists():
+    avance = AVANCE.read_text()
+    if "Puente Audit Trail -> Reportes Programados" not in avance:
+        AVANCE.write_text(avance + avance_append)
+
+if HANDOFF.exists():
+    handoff = HANDOFF.read_text()
+    if "Puente Audit Trail -> Reportes Programados" not in handoff:
+        HANDOFF.write_text(handoff + handoff_append)
+
+print("PATCH COMPLETADO OK")
+print(f"Backup creado en: {BACKUP_DIR}")
+print("Archivos modificados:")
+print("- src/app/audit-trail/page.tsx")
+print("- src/app/reportes-programados/page.tsx")
+print("- AVANCE_FLORATRACK.md")
+print("- CHATGPT_HANDOFF_FLORATRACK.md")
