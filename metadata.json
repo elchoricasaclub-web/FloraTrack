@@ -1,0 +1,6 @@
+{
+  "name": "Cannamedic",
+  "description": "SaaS Médico y Farmacéutico para prescripción y manejo de Cannabis Medicinal en Colombia bajo normatividad vigente.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
