@@ -2856,7 +2856,7 @@ model PrivateAiDeploymentPlan {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
-
+// 1. MODELO: PrivateAiModelValidation (Terminado limpia y organizadamente)
 model PrivateAiModelValidation {
   id                 String   @id @default(cuid())
   code               String   @unique
@@ -2870,4 +2870,20 @@ model PrivateAiModelValidation {
   status             String   @default("Borrador")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+// 2. MODELO: AuditoriaCheck (Totalmente independiente, justo debajo)
+model AuditoriaCheck {
+  id                String   @id @default(uuid()) @map("_id")
+  title             String
+  auditorName       String
+  date              DateTime @default(now())
+  standardType      String   // "GACP", "GMP", "EU-GMP"
+  status            String   // "Abierto", "Cerrado"
+  totalItems        Int
+  passedItems       Int
+  score             Int      // Porcentaje calculado
+  observations      String
+  isAiReviewPending Boolean  @default(true)
+  aiReport          String?
 }
