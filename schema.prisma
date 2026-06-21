@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Representa un lote (Batch) de cultivo bajo monitoreo GACP/GMP
+model Batch {
+  id              String             @id @default(uuid())
+  name            String             // Nombre o identificador del lote
+  variety         String             // Variedad botánica cultivada
+  stage           String             // Etapa actual de cultivo (ej. Vegetativo, Floración, Cosechado)
+  complianceScore Int                @default(100) // Puntuación de cumplimiento normativo (0-100)
+  location        String             // Ubicación física (ej. Invernadero A, Parcela B)
+  hash            String             // Hash criptográfico de trazabilidad para blockchain / auditoría externa
+  barcode         String             // Código de barra/QR de rastreabilidad física
+  timestamp       DateTime           @default(now()) // Fecha de registro o de inicio del lote
+  gmpCertified    Boolean            @default(false) // Indica si cumple con criterios de grado farmacéutico (GMP)
+  
+  // Relaciones
+  auditRecords    AuditRecord[]      // Historial de auditorías y controles de cumplimiento asociados
+  complianceLogs  ComplianceStatus[] // Registros históricos del estado de cumplimiento
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@map("batches")
+}
+
+/// Representa una auditoría individual o punto de control verificado
+model AuditRecord {
+  id            String   @id @default(uuid())
+  batchId       String
+  batch         Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  section       String   // Sección evaluada (ej. Higiene, Sanidad, Registro)
+  requirement   String   // Requisito específico de la directiva GACP/GMP
+  verified      Boolean  @default(false) // Si fue verificado físicamente
+  notes         String?  // Observaciones hechas por el auditor
+  evidenceImage String?  // URL o referencia a la imagen guardada como evidencia física
+  compliant     Boolean  @default(false) // Si cumple satisfactoriamente el punto
+  scoreValue    Int      @default(0)     // Puntaje ponderado del punto auditado
+  createdAt     DateTime @default(now())
+
+  @@map("audit_records")
+}
+
+/// Bitácora histórica de estado del cumplimiento de regulaciones
+model ComplianceStatus {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  statusType  String   // Regulaciones probadas (ej. "GACP-OMS", "EU-GMP")
+  score       Int      // Puntaje obtenido
+  remarks     String?  // Comentarios adicionales del estado
+  checkedBy   String   // Nombre o id del auditor firmante
+  timestamp   DateTime @default(now())
+
+  @@map("compliance_statuses")
+}

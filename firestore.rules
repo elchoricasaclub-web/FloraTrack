@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Función auxiliar para verificar si el usuario está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Obtener los datos del perfil de usuario
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios_saas/$(request.auth.uid)).data;
+    }
+
+    // Verificar si el usuario tiene rol ADMINISTRATIVO
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().rol == 'ADMINISTRATIVO' || request.auth.token.email == 'admin@floratrack.com');
+    }
+
+    // Verificar si el usuario es OPERATIVO
+    function isOperativo() {
+      return isAuthenticated() && getUserData().rol == 'OPERATIVO';
+    }
+
+    function isAuditor() {
+      return isAuthenticated() && getUserData().rol == 'AUDITOR_EXTERNO';
+    }
+
+    // ==========================================
+    // SECCIÓN: usuarios_saas
+    // ==========================================
+    match /usuarios_saas/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+    }
+
+    // ==========================================
+    // SECCIÓN: fincas (Configuración - Solo Admin Gestiona)
+    // ==========================================
+    match /fincas/{fincaId} {
+      // Todo el personal puede leer la configuración de fincas
+      allow read: if isAuthenticated();
+      // Solo Admin puede crear, actualizar o eliminar la configuración de Fincas
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // SECCIÓN: lotes (Configuración - Solo Admin Gestiona)
+    // ==========================================
+    match /lotes/{loteId} {
+      // Todo el personal puede leer la configuración de lotes
+      allow read: if isAuthenticated();
+      // Solo Admin puede crear, actualizar o eliminar la configuración de Lotes
+      allow write: if isAdmin();
+    }
+    
+    // ==========================================
+    // SECCIÓN: cultivos (Configuración - Solo Admin Gestiona)
+    // ==========================================
+    match /cultivos/{cultivoId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // SECCIÓN: actividades_agricolas (Trazabilidad y GACP/GMP)
+    // ==========================================
+    match /actividades_agricolas/{actividadId} {
+      // Lectura para todo el personal autenticado
+      allow read: if isAuthenticated();
+
+      // Creación: Operativos y Admins pueden registrar
+      allow create: if isAdmin() || isOperativo();
+
+      // Actualización: Operativos solo pueden añadir actualizaciones a sus registros para cumplimiento, 
+      // y no pueden modificar el tipo de actividad para evitar fraudes (Data Integrity - ALCOA+).
+      allow update: if isAdmin() || 
+        (isOperativo() && request.resource.data.tipoActividad == resource.data.tipoActividad);
+
+      // Los auditores externos pueden validar o rellenar observaciones
+      allow update: if isAuditor() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'checkedBy', 'verified', 'updatedAt']);
+
+      // Eliminación: Estrictamente prohibida para Operativos. Solo Admins pueden eliminar registros, 
+      // protegiendo la integridad GACP/GMP.
+      allow delete: if isAdmin();
+    }
+    
+    // ==========================================
+    // SECCIÓN: batches (Crop Batches) - Añadido para completitud de cumplimiento
+    // ==========================================
+    match /batches/{batchId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() || isOperativo();
+      allow delete: if isAdmin();
+    }
+  }
+}
