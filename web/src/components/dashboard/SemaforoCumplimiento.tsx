@@ -1,5 +1,5 @@
 import React from 'react';
-import { useComplianceStore } from '../store';
+import { useComplianceStore } from '@/store';
 
 export const SemaforoCumplimiento: React.FC = () => {
   const { batches, complianceStandard } = useComplianceStore();
